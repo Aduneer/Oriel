@@ -1,0 +1,54 @@
+# Builds the installer and a portable zip on GitHub's Windows machines and drafts a release.
+#
+# To release: set `version` in src-tauri/Cargo.toml, then push a tag with that version:
+#   git tag v0.2.0
+#   git push origin v0.2.0
+# Check the draft on the Releases page, add notes, and publish it.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # to create the draft release
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the tag matches the version
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path src-tauri/Cargo.toml -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches.Groups[1].Value
+          if ("v$version" -ne $env:TAG) { throw "Tag $env:TAG doesn't match version $version in src-tauri/Cargo.toml" }
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # Release build plus the NSIS installer. Code signing would go here once there's a certificate.
+      - name: Build
+        working-directory: src-tauri
+        run: npx --yes @tauri-apps/cli@2 build
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $v = $env:TAG.TrimStart("v")
+          New-Item -ItemType Directory dist | Out-Null
+          Copy-Item (Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe).FullName "dist/Oriel-$v-setup.exe"
+          Compress-Archive src-tauri/target/release/oriel.exe "dist/Oriel-$v-portable.zip"
+          Get-ChildItem dist | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } |
+            Set-Content dist/SHA256SUMS.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: dist/*

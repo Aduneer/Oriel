@@ -1,0 +1,284 @@
+/* Color palettes. Each has a dark and a light variant: data-palette picks the palette and
+   data-mode ("dark" | "light", resolved from the theme setting in app.js) picks the variant.
+   They're scoped to the attributes rather than :root, so any element can carry its own
+   palette; the theme previews in Settings do exactly that.
+
+   Every block sets every token. Palettes other than Oriel's own come from their projects
+   (all MIT licensed), with a few in-between shades added where a dashboard needs more
+   steps than an editor theme has. */
+
+/* ---- Oriel: neutral warm grays --------------------------------------------------- */
+[data-palette="oriel"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-hi: #262624;
+  --ink: #f0efec;
+  --ink-2: #c3c2b7;
+  --muted: #898781;
+  --grid: #2c2c2a;
+  --baseline: #383835;
+  --border: rgba(255, 255, 255, 0.08);
+  --shadow: rgba(0, 0, 0, 0.45);
+  --cpu: #3987e5;
+  --gpu: #9085e9;
+  --mem: #199e70;
+  --s1: #3987e5;
+  --s2: #199e70;
+  --accent: #3987e5;
+  --on-accent: #ffffff;
+  --warn: #fab219;
+  --crit: #d03b3b;
+}
+[data-palette="oriel"][data-mode="light"] {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-hi: #ffffff;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --baseline: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10);
+  --shadow: rgba(0, 0, 0, 0.14);
+  --cpu: #2a78d6;
+  --gpu: #6250d6;
+  --mem: #1baf7a;
+  --s1: #2a78d6;
+  --s2: #1baf7a;
+  --accent: #2a78d6;
+  --on-accent: #ffffff;
+  --warn: #fab219;
+  --crit: #d03b3b;
+}
+
+/* ---- Catppuccin: Mocha and Latte (catppuccin.com) -------------------------------- */
+[data-palette="catppuccin"] {
+  color-scheme: dark;
+  --page: #11111b;
+  --surface: #1e1e2e;
+  --surface-hi: #313244;
+  --ink: #cdd6f4;
+  --ink-2: #bac2de;
+  --muted: #7f849c;
+  --grid: #313244;
+  --baseline: #45475a;
+  --border: rgba(205, 214, 244, 0.08);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --cpu: #89b4fa;
+  --gpu: #cba6f7;
+  --mem: #a6e3a1;
+  --s1: #89b4fa;
+  --s2: #a6e3a1;
+  --accent: #cba6f7;
+  --on-accent: #11111b;
+  --warn: #f9e2af;
+  --crit: #f38ba8;
+}
+[data-palette="catppuccin"][data-mode="light"] {
+  color-scheme: light;
+  --page: #e6e9ef;
+  --surface: #eff1f5;
+  --surface-hi: #f9fafc;
+  --ink: #4c4f69;
+  --ink-2: #5c5f77;
+  --muted: #7c7f93;
+  --grid: #ccd0da;
+  --baseline: #bcc0cc;
+  --border: rgba(76, 79, 105, 0.12);
+  --shadow: rgba(76, 79, 105, 0.16);
+  --cpu: #1e66f5;
+  --gpu: #8839ef;
+  --mem: #40a02b;
+  --s1: #1e66f5;
+  --s2: #40a02b;
+  --accent: #8839ef;
+  --on-accent: #ffffff;
+  --warn: #df8e1d;
+  --crit: #d20f39;
+}
+
+/* ---- Nord (nordtheme.com) -------------------------------------------------------- */
+[data-palette="nord"] {
+  color-scheme: dark;
+  --page: #242933;
+  --surface: #2e3440;
+  --surface-hi: #3b4252;
+  --ink: #eceff4;
+  --ink-2: #d8dee9;
+  --muted: #8f99ab;
+  --grid: #3b4252;
+  --baseline: #434c5e;
+  --border: rgba(216, 222, 233, 0.07);
+  --shadow: rgba(0, 0, 0, 0.4);
+  --cpu: #88c0d0;
+  --gpu: #b48ead;
+  --mem: #a3be8c;
+  --s1: #88c0d0;
+  --s2: #a3be8c;
+  --accent: #88c0d0;
+  --on-accent: #2e3440;
+  --warn: #ebcb8b;
+  --crit: #bf616a;
+}
+[data-palette="nord"][data-mode="light"] {
+  color-scheme: light;
+  --page: #e5e9f0;
+  --surface: #eceff4;
+  --surface-hi: #f8f9fb;
+  --ink: #2e3440;
+  --ink-2: #4c566a;
+  --muted: #6f788a;
+  --grid: #d8dee9;
+  --baseline: #bfc7d5;
+  --border: rgba(46, 52, 64, 0.10);
+  --shadow: rgba(46, 52, 64, 0.14);
+  --cpu: #5e81ac;
+  --gpu: #9b6b93;
+  --mem: #7b9a5f;
+  --s1: #5e81ac;
+  --s2: #7b9a5f;
+  --accent: #5e81ac;
+  --on-accent: #ffffff;
+  --warn: #c0882b;
+  --crit: #bf616a;
+}
+
+/* ---- Gruvbox (github.com/morhetz/gruvbox) ---------------------------------------- */
+[data-palette="gruvbox"] {
+  color-scheme: dark;
+  --page: #1d2021;
+  --surface: #282828;
+  --surface-hi: #3c3836;
+  --ink: #ebdbb2;
+  --ink-2: #d5c4a1;
+  --muted: #928374;
+  --grid: #3c3836;
+  --baseline: #504945;
+  --border: rgba(235, 219, 178, 0.08);
+  --shadow: rgba(0, 0, 0, 0.45);
+  --cpu: #83a598;
+  --gpu: #d3869b;
+  --mem: #b8bb26;
+  --s1: #83a598;
+  --s2: #b8bb26;
+  --accent: #8ec07c;
+  --on-accent: #1d2021;
+  --warn: #fabd2f;
+  --crit: #fb4934;
+}
+[data-palette="gruvbox"][data-mode="light"] {
+  color-scheme: light;
+  --page: #f2e5bc;
+  --surface: #fbf1c7;
+  --surface-hi: #f9f5d7;
+  --ink: #3c3836;
+  --ink-2: #504945;
+  --muted: #7c6f64;
+  --grid: #ebdbb2;
+  --baseline: #d5c4a1;
+  --border: rgba(60, 56, 54, 0.12);
+  --shadow: rgba(60, 56, 54, 0.16);
+  --cpu: #076678;
+  --gpu: #8f3f71;
+  --mem: #79740e;
+  --s1: #076678;
+  --s2: #79740e;
+  --accent: #427b58;
+  --on-accent: #fbf1c7;
+  --warn: #b57614;
+  --crit: #9d0006;
+}
+
+/* ---- Rosé Pine: main and Dawn (rosepinetheme.com) -------------------------------- */
+[data-palette="rose-pine"] {
+  color-scheme: dark;
+  --page: #191724;
+  --surface: #1f1d2e;
+  --surface-hi: #26233a;
+  --ink: #e0def4;
+  --ink-2: #b9b5d0;
+  --muted: #908caa;
+  --grid: #26233a;
+  --baseline: #403d52;
+  --border: rgba(224, 222, 244, 0.07);
+  --shadow: rgba(0, 0, 0, 0.45);
+  --cpu: #9ccfd8;
+  --gpu: #c4a7e7;
+  --mem: #ebbcba;
+  --s1: #9ccfd8;
+  --s2: #ebbcba;
+  --accent: #c4a7e7;
+  --on-accent: #191724;
+  --warn: #f6c177;
+  --crit: #eb6f92;
+}
+[data-palette="rose-pine"][data-mode="light"] {
+  color-scheme: light;
+  --page: #faf4ed;
+  --surface: #fffaf3;
+  --surface-hi: #ffffff;
+  --ink: #575279;
+  --ink-2: #6e6a86;
+  --muted: #8a849b;
+  --grid: #f2e9e1;
+  --baseline: #dfdad9;
+  --border: rgba(87, 82, 121, 0.10);
+  --shadow: rgba(87, 82, 121, 0.14);
+  --cpu: #286983;
+  --gpu: #907aa9;
+  --mem: #d7827e;
+  --s1: #286983;
+  --s2: #d7827e;
+  --accent: #907aa9;
+  --on-accent: #ffffff;
+  --warn: #ea9d34;
+  --crit: #b4637a;
+}
+
+/* ---- Solarized (ethanschoonover.com/solarized) ----------------------------------- */
+[data-palette="solarized"] {
+  color-scheme: dark;
+  --page: #00212b;
+  --surface: #002b36;
+  --surface-hi: #073642;
+  --ink: #eee8d5;
+  --ink-2: #93a1a1;
+  --muted: #708a91;
+  --grid: #073642;
+  --baseline: #154552;
+  --border: rgba(147, 161, 161, 0.10);
+  --shadow: rgba(0, 0, 0, 0.45);
+  --cpu: #268bd2;
+  --gpu: #6c71c4;
+  --mem: #859900;
+  --s1: #268bd2;
+  --s2: #859900;
+  --accent: #2aa198;
+  --on-accent: #fdf6e3;
+  --warn: #b58900;
+  --crit: #dc322f;
+}
+[data-palette="solarized"][data-mode="light"] {
+  color-scheme: light;
+  --page: #eee8d5;
+  --surface: #fdf6e3;
+  --surface-hi: #fffbf0;
+  --ink: #073642;
+  --ink-2: #586e75;
+  --muted: #7b8c8f;
+  --grid: #eee8d5;
+  --baseline: #ddd6c1;
+  --border: rgba(7, 54, 66, 0.10);
+  --shadow: rgba(7, 54, 66, 0.12);
+  --cpu: #268bd2;
+  --gpu: #6c71c4;
+  --mem: #859900;
+  --s1: #268bd2;
+  --s2: #859900;
+  --accent: #2aa198;
+  --on-accent: #ffffff;
+  --warn: #b58900;
+  --crit: #dc322f;
+}

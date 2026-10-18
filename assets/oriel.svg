@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Oriel</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#212128"/>
+      <stop offset="1" stop-color="#101014"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3987e5"/>
+      <stop offset="1" stop-color="#9085e9"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="230" fill="url(#bg)"/>
+  <g fill="url(#glass)">
+    <rect x="262" y="300" width="130" height="340" rx="18"/>
+    <rect x="406" y="300" width="212" height="340" rx="18"/>
+    <rect x="632" y="300" width="130" height="340" rx="18"/>
+  </g>
+  <!-- side panes recede -->
+  <g fill="#000" fill-opacity="0.18">
+    <rect x="262" y="300" width="130" height="340" rx="18"/>
+    <rect x="632" y="300" width="130" height="340" rx="18"/>
+  </g>
+  <g fill="#f0efec">
+    <polygon points="248,286 326,214 698,214 776,286"/>
+    <rect x="236" y="654" width="552" height="36" rx="12"/>
+    <polygon points="392,704 632,704 512,800"/>
+  </g>
+</svg>

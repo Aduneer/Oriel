@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en" data-palette="oriel" data-mode="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oriel</title>
+<link rel="stylesheet" href="themes.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="stage">
+  <header class="top">
+    <div class="host"><strong id="host">Oriel</strong><span id="os"></span></div>
+    <div class="status">
+      <span id="conn" class="chip warn" hidden>No data</span>
+      <button id="battery" class="battery plain" data-action="ms-settings:batterysaver" title="Battery settings" hidden></button>
+      <span id="uptime"></span>
+      <span class="clock"><span id="time"></span><span id="date"></span></span>
+      <span class="tools">
+        <button id="themeBtn" class="icon" type="button"></button>
+        <button id="gearBtn" class="icon" type="button" title="Settings ( , )" aria-label="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+        </button>
+      </span>
+    </div>
+  </header>
+  <main id="grid"></main>
+</div>
+
+<div id="scrim" class="scrim"></div>
+<aside id="settings" class="drawer" aria-label="Settings" inert></aside>
+<div id="tip" class="tip" hidden></div>
+
+<script src="core.js"></script>
+<script src="widgets/cpu.js"></script>
+<script src="widgets/gpu.js"></script>
+<script src="widgets/memory.js"></script>
+<script src="widgets/network.js"></script>
+<script src="widgets/disk.js"></script>
+<script src="widgets/processes.js"></script>
+<script src="settings.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

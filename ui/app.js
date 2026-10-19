@@ -72,7 +72,7 @@ function build(history) {
   const cap = Math.round(settings.graph_seconds / interval) + 1;
   O.charts.length = 0;
   latest = null;
-  pages = settings.pages.map(p => mount(p.layout, cap, settings.pages.length > 1));
+  pages = settings.pages.map(p => mount(p, cap, settings.pages.length > 1));
   grid.replaceChildren(...pages.map(p => p.root));
 
   for (const s of history.slice(-cap)) for (const c of O.charts) c.push(s);
@@ -86,20 +86,23 @@ function build(history) {
   $("#host").textContent = info.host;
   $("#os").textContent = info.os;
   document.title = `${info.host} · Oriel`;
+  O.editor.refresh(); // still editing the layout after a change
 }
 
-/** One page's tiles, in rows. */
-function mount(layout, cap, many) {
+/** One page's tiles, in rows. Sizes set in the layout editor win over the widgets' own. */
+function mount({ layout, cols: widths = [], rows: heights = [] }, cap, many) {
   const { info } = O.state;
   const root = el(`<div class="page" hidden></div>`);
   const page = { root, tiles: [], charts: [] };
   const rows = [], rowsPortrait = [];
 
-  for (const ids of layout) {
+  for (const [r, ids] of layout.entries()) {
     const row = el(`<section class="row"></section>`);
+    row.dataset.r = r; // the row's place in the settings, which rows without a working widget leave out of the page
     const cols = [];
     let h = 0;
-    for (const id of ids) {
+    const own = widths[r]?.length === ids.length ? widths[r] : null; // a width for every widget, or the widgets' own
+    for (const [k, id] of ids.entries()) {
       const def = O.widgets.get(id);
       if (!def) continue;
       for (const inst of def.instances ? def.instances(info) : [undefined]) {
@@ -121,7 +124,7 @@ function mount(layout, cap, many) {
           w.root.dataset.widget = id;
           row.appendChild(w.root);
           page.tiles.push(w);
-          cols.push(`${def.size.w}fr`);
+          cols.push(own ? own[k] : def.size.w);
           h = Math.max(h, def.size.h);
         } catch (e) {
           console.error(`widget ${id} failed to start`, e);
@@ -129,16 +132,17 @@ function mount(layout, cap, many) {
       }
     }
     if (!cols.length) continue;
-    row.style.setProperty("--cols", cols.join(" "));
+    if (heights.length === layout.length) h = heights[r];
+    row.style.setProperty("--cols", O.fr(cols));
     root.appendChild(row);
-    rows.push(`${h}fr`);
-    rowsPortrait.push(`${h * Math.ceil(cols.length / 2)}fr`); // portrait wraps rows into two columns
+    rows.push(h);
+    rowsPortrait.push(h * Math.ceil(cols.length / 2)); // portrait wraps rows into two columns
   }
   if (!rows.length) {
     root.appendChild(el(`<p class="empty">Nothing on ${many ? "this page" : "the dashboard"} yet.<br><button type="button" data-open-settings>Open settings</button> to add widgets.</p>`));
   }
-  root.style.setProperty("--rows", rows.join(" ") || "1fr");
-  root.style.setProperty("--rows-p", rowsPortrait.join(" ") || "1fr");
+  root.style.setProperty("--rows", O.fr(rows));
+  root.style.setProperty("--rows-p", O.fr(rowsPortrait));
   return page;
 }
 
@@ -195,7 +199,7 @@ function rotateLater() {
   rotateTimer = setTimeout(function next() {
     if (document.hidden) return; // starts again when the window is shown
     const wait = lastInput + ms - Date.now();
-    if (wait > 0 || O.settingsPanel.isOpen()) rotateTimer = setTimeout(next, wait > 0 ? wait : ms);
+    if (wait > 0 || O.settingsPanel.isOpen() || O.editor.active) rotateTimer = setTimeout(next, wait > 0 ? wait : ms);
     else showPage((current + 1) % pages.length);
   }, ms);
 }
@@ -288,6 +292,7 @@ document.addEventListener("keydown", e => {
   }
   if (e.target.closest("input, select, textarea")) return;
   if (e.key === ",") O.settingsPanel.toggle();
+  else if (e.key === "e" && !e.ctrlKey && !e.altKey && !e.metaKey) O.editor.toggle();
   else if (e.key === "/") {
     e.preventDefault();
     focusSearch();

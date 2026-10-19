@@ -48,6 +48,7 @@ ui/                   the dashboard: plain HTML, CSS and canvas, no build step, 
   themes.css          the themes, each a set of CSS variables in a dark and a light version
   core.js             widget registry, charts, formatting
   widgets/*.js        one file per widget
+  editor.js           Edit layout: moving and resizing tiles on the dashboard
   settings.js         the settings panel
   app.js              layout and the update loop
 tools/preview/        runs the dashboard in a browser on made-up data
@@ -69,6 +70,16 @@ returns a root element plus an `update(sample)` function. `ui/widgets/network.js
 one to start from. Add a `<script>` tag for it in `ui/index.html`, then add it to the
 dashboard in Settings → Layout.
 
+A widget's `size: {w, h}` is its default width within a row and its row's default height. They're
+only weights: a page saved from Edit layout carries its own (`cols` and `rows` in
+`settings.json`, one number per widget and per row, kept in range and dropped when they don't
+match the layout, see `Page::clamp_sizes` in `settings.rs`). Pages without them, like those saved
+by older versions, use the widgets' sizes. Anything that rebuilds tiles has to leave room for
+the editor's overlay: `app.js` calls `Oriel.editor.refresh()` after it builds the page.
+
+`ui/widgets/gauges.js` is the one to copy for a canvas widget that isn't a graph: it redraws
+only when its number, size or colors change.
+
 Use the theme's CSS variables (`var(--ink)`, `var(--cpu)` and so on, see `ui/themes.css`)
 rather than fixed colors, so the widget works in every theme, dark and light.
 
@@ -83,6 +94,8 @@ powershell -ExecutionPolicy RemoteSigned -File tools\preview\preview.ps1
 
 Options go after the page's address, for example `?palette=nord&theme=light`,
 `?procs=tree`, `?layout=cpu,processes` or `?pages=Resources:cpu,gpu|processes;Media:media`.
+`?edit=1` starts in Edit layout, and `?widths=2,1|1,1,1&heights=1,2` gives the first page the
+sizes Edit layout would have saved.
 The top of `demo.js` lists them all.
 
 Add `-Screenshots` to render the images in the README again (it uses Edge or Chrome,

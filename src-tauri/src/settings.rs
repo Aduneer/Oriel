@@ -28,6 +28,9 @@ pub struct Settings {
     pub gpu: bool,
     pub nvml: bool,
     pub lhm_url: String,
+    /// Load widgets from %APPDATA%\Oriel\widgets (see plugins.rs). Off by default: they're code
+    /// that runs in the dashboard with its rights.
+    pub plugins: bool,
 }
 
 /// One dashboard: the name on its tab, and rows of widget ids, top to bottom.
@@ -79,6 +82,7 @@ impl Default for Settings {
             gpu: false,
             nvml: true,
             lhm_url: "http://127.0.0.1:8085/data.json".into(),
+            plugins: false,
         }
     }
 }
@@ -189,6 +193,13 @@ mod tests {
         let s = Settings::parse(r#"{"pages": [{"name": "Resources", "layout": [["cpu"]]}, {"name": "Media", "layout": [["media"]]}]}"#).unwrap();
         assert!(s.shows("cpu") && s.shows("media"));
         assert!(!s.shows("processes"));
+    }
+
+    #[test]
+    fn plugins_are_off_unless_asked_for() {
+        assert!(!Settings::default().plugins);
+        assert!(!Settings::parse(r#"{"theme": "dark"}"#).unwrap().plugins);
+        assert!(Settings::parse(r#"{"plugins": true}"#).unwrap().plugins);
     }
 
     #[test]

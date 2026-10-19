@@ -21,6 +21,21 @@ and Windows versions you tried.
   the widget it doesn't look. What's playing never leaves your PC.
 - With the volume mixer on the dashboard, it reads and changes the volume of your default output
   and of the apps playing through it (`set_volume`). Without the widget it doesn't look.
+- Plugins are off by default. With **Load widgets from the plugins folder** on, the dashboard
+  runs the `.js` files in `%APPDATA%\Oriel\widgets` as widgets (`src-tauri/src/plugins.rs`).
+  That is code you chose to run, inside the dashboard page, with the same rights as the built-in
+  widgets: it can read everything the dashboard shows and call every command the page can (end
+  processes, change volume, open Settings pages). Only use plugins from people you trust, as with
+  browser extensions. What Oriel does to limit the damage:
+  - Only plain `.js` and `.css` files directly in that folder are served, over a custom scheme
+    (`oriel-plugins`) that answers nothing while the setting is off. No subfolders, no `..`, no
+    symlinks leading out of the folder, at most 512 KB a file.
+  - The content security policy allows scripts and styles from that scheme and nowhere else, and
+    leaves `connect-src` at `'self'`, so a plugin can't `fetch`, open a WebSocket or load remote
+    scripts, images or fonts. This is a safety net, not a sandbox: assume a malicious plugin
+    can find another way out.
+  - A plugin that throws, or won't load, becomes an error tile instead of breaking the dashboard.
+  - Plugins can't take over a built-in widget's id.
 - It runs as you, without admin rights, and installs per user.
 - Releases are built by GitHub Actions from the tagged commit. Each release lists the SHA-256 of
   its files in `SHA256SUMS.txt`. They aren't code-signed yet.

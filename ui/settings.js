@@ -16,7 +16,7 @@ const PALETTES = [["oriel", "Oriel"], ["catppuccin", "Catppuccin"], ["nord", "No
 // Changing these means re-reading history at a new resolution, so the dashboard is rebuilt.
 const REBUILD = new Set(["graph_seconds", "interval_ms", "pages"]);
 // Read once at startup (sensor threads, WebView2 flags).
-const RESTART = new Set(["nvml", "lhm_url", "gpu"]);
+const RESTART = new Set(["nvml", "lhm_url", "gpu", "plugins"]);
 
 const drawer = () => $("#settings");
 const searchInput = () => drawer().querySelector(".search input");
@@ -49,6 +49,25 @@ async function save(patch) {
 
 const options = (list, value) => list.map(([v, label]) => `<option value="${v}"${String(v) === String(value) ? " selected" : ""}>${esc(label)}</option>`).join("");
 const sw = (id, key, checked) => `<input id="${id}" type="checkbox" class="switch" data-set="${key}"${checked ? " checked" : ""}>`;
+
+/** The Plugins section: the switch, a plain warning, the folder button and what the last load made of the files. */
+function pluginsSection() {
+  const { loaded, problems } = O.plugins;
+  const status = !S().plugins ? "" : `<p class="note" data-s="plugins loaded problems errors">${loaded} plugin widget${loaded === 1 ? "" : "s"} loaded.</p>` +
+    (problems.length ? `<ul class="pproblems" data-s="plugins problems errors">${problems.map(p => `<li><b>${esc(p.file)}</b> ${esc(p.message)}</li>`).join("")}</ul>` : "");
+  return `
+      <section data-sk="plugins widgets extensions scripts custom">
+        <h3>Plugins</h3>
+        <div class="field" data-s="plugins widgets folder scripts custom load extensions"><label for="s-plugins">Load widgets from the plugins folder<span class="hint">Applies after a restart.</span></label>
+          ${sw("s-plugins", "plugins", S().plugins)}</div>
+        <p class="note" data-s="plugins security trust safe rights code javascript">A plugin is a script that runs inside the dashboard with the same rights as Oriel's own widgets: it can read everything the dashboard shows and use the buttons it has, such as ending processes, changing volume and opening Windows settings. Only add plugins from people you trust, like browser extensions.</p>
+        <div class="actions" data-s="plugins widgets folder open explorer"><button class="btn" type="button" data-action="plugins-folder">Open plugins folder</button></div>
+        ${status}
+        <div class="actions" data-restart-row hidden><span class="note">Restart Oriel to apply.</span>
+          <button class="btn primary" type="button" data-restart>Restart now</button></div>
+      </section>
+`;
+}
 
 function render() {
   const s = S();
@@ -119,6 +138,7 @@ function render() {
           <button class="btn primary" type="button" data-restart>Restart now</button></div>
       </section>
 
+      ${pluginsSection()}
       <section data-sk="warnings thresholds limits">
         <h3>Alerts</h3>
         <p class="note">Readings get an amber “warm/high” label at the first value and a red one at the second.</p>

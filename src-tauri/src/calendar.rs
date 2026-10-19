@@ -156,7 +156,7 @@ mod tests {
 
     fn settings(on: bool, urls: &[&str]) -> Settings {
         Settings {
-            pages: vec![Page { name: "P".into(), layout: vec![if on { vec!["calendar".to_string()] } else { vec![] }] }],
+            pages: vec![Page { name: "P".into(), layout: vec![if on { vec!["calendar".to_string()] } else { vec![] }], ..Page::default() }],
             calendars: urls.iter().map(|u| CalendarFeed { name: String::new(), color: String::new(), url: u.to_string() }).collect(),
             ..Settings::default()
         }

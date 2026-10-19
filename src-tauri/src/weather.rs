@@ -328,7 +328,7 @@ mod tests {
 
     fn settings(on: bool, place: Option<Chosen>) -> Settings {
         Settings {
-            pages: vec![Page { name: "P".into(), layout: vec![if on { vec!["weather".to_string()] } else { vec![] }] }],
+            pages: vec![Page { name: "P".into(), layout: vec![if on { vec!["weather".to_string()] } else { vec![] }], ..Page::default() }],
             weather_place: place,
             ..Settings::default()
         }

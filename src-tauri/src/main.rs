@@ -60,7 +60,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show(app)))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
-        .invoke_handler(tauri::generate_handler![hello, save_settings, set_autostart, toggle_fullscreen, run_action, restart])
+        .invoke_handler(tauri::generate_handler![hello, save_settings, set_autostart, toggle_fullscreen, run_action, end_processes, restart])
         .setup(|app| {
             let settings = Settings::load().clamp();
             let lhm = (!settings.lhm_url.is_empty()).then(|| settings.lhm_url.clone());
@@ -195,6 +195,14 @@ fn run_action(name: String) -> Result<(), String> {
     } else {
         Err(format!("couldn't open {target} (error {r})"))
     }
+}
+
+/// The process list's right-click "End process". Only with the user's own rights, so Windows
+/// refuses elevated processes, other users' and its own. `seen` is the time of the sample the
+/// list was showing (see `procs::end`).
+#[tauri::command]
+fn end_processes(pids: Vec<u32>, seen: f64) -> procs::Ended {
+    procs::end(&pids, seen)
 }
 
 /// For settings that are only read at startup (sensor sources).

@@ -11,6 +11,8 @@ const COLUMNS = {
 const SORT_KEY = "oriel.processes.sort";
 const VIEW_KEY = "oriel.processes.view";
 const TREE_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4v5a2 2 0 0 0 2 2h3M4 9v8a2 2 0 0 0 2 2h3M13 5h7M13 11h7M13 19h7"/></svg>`;
+const NOTE_MS = 5000;
+const REFUSED = "It runs as administrator or as part of Windows, and Oriel only has your rights.";
 
 // Sort order and view are per-screen conveniences, so they live in the page's storage, not the settings file.
 function loadSort() {
@@ -37,7 +39,7 @@ function markHTML(text, needle) {
 
 register("processes", {
   name: "Processes",
-  description: "Every running app, grouped by name or as a tree. Search, sort and scroll.",
+  description: "Every running app, grouped by name or as a tree. Search, sort, and right-click to end one.",
   color: "muted",
   size: { w: 1.2 },
   create(ctx) {
@@ -53,6 +55,10 @@ register("processes", {
           <button type="button" data-sort="mem">Memory</button>
         </div>
         <div class="list" data-k="list"><div data-k="rows"></div></div>
+        <div class="pmenu" data-k="menu" role="menu" hidden>
+          <div class="who" data-k="who"></div>
+          <button type="button" role="menuitem" data-k="end"></button>
+        </div>
       </article>`));
     const q = t.root.querySelector(".find input");
     let procs = [];          // newest list from the backend: {pid, ppid, name, cpu, mem}
@@ -65,6 +71,9 @@ register("processes", {
     const closed = new Set(); // pids collapsed in the tree view
     let queued = false;
     let box = "";
+    let seen = 0;            // time of the sample the list shows (see end_processes in main.rs)
+    let picked = null;       // {key, name, pids, seen} while the right-click menu is open
+    let note = null;         // {text, title, bad, until}: what came of ending something
 
     const order = () => {
       const c = COLUMNS[sort.by];
@@ -158,7 +167,7 @@ register("processes", {
       const twig = r.kids ? `<i class="tw c${r.open ? " open" : ""}"></i>` : `<i class="tw${r.depth ? " leaf" : ""}"></i>`;
       const label = r.name != null ? markHTML(r.name, needle) : `<span class="pid">PID ${markHTML(String(r.pid), needle)}</span>`;
       const title = r.name != null && r.pid ? `${r.name} · PID ${r.pid}` : r.name ?? `PID ${r.pid}`;
-      return `<div class="r${r.toggle ? " x" : ""}${r.ctx ? " ctx" : ""}" data-k="${esc(r.key)}" title="${esc(title)}">` +
+      return `<div class="r${r.toggle ? " x" : ""}${r.ctx ? " ctx" : ""}${picked?.key === r.key ? " picked" : ""}" data-k="${esc(r.key)}" title="${esc(title)}">` +
         `<span class="n">${guides}${twig}<span class="nm">${label}</span>${r.badge ? `<span class="count">${r.badge}</span>` : ""}</span>` +
         `<span>${r.cpu.toFixed(1)}%</span><span>${fmt.bytes(r.mem)}</span></div>`;
     }
@@ -184,8 +193,78 @@ register("processes", {
     function refresh() {
       rows = tree ? treeRows() : groupRows();
       draw();
-      setText(t.sub, needle ? `${shown} of ${procs.length}` : procs.length ? `${procs.length} running` : "");
+      if (note && note.until < Date.now()) note = null;
+      setText(t.sub, note ? note.text : needle ? `${shown} of ${procs.length}` : procs.length ? `${procs.length} running` : "");
+      t.sub.classList.toggle("bad", !!note?.bad);
+      t.sub.title = note ? note.title || note.text : "";
     }
+
+    // ---- ending processes: right-click a row, then "End" ----
+    /** The processes a row stands for: a whole group, or one process. */
+    function target(key) {
+      if (key.startsWith("g:")) {
+        const name = key.slice(2);
+        const pids = procs.filter(p => p.name === name).map(p => p.pid);
+        return pids.length ? { key, name, pids } : null;
+      }
+      const p = procs.find(p => p.pid === Number(key.slice(2)));
+      return p ? { key, name: p.name, pids: [p.pid] } : null;
+    }
+
+    function openMenu(pick, x, y) {
+      picked = { ...pick, seen };
+      const n = pick.pids.length;
+      setText(t.who, n > 1 ? `${pick.name} · ${n} processes` : `${pick.name} · PID ${pick.pids[0]}`);
+      t.end.textContent = n > 1 ? `End all ${n}` : "End process";
+      t.end.disabled = false;
+      t.menu.hidden = false;
+      // Next to the pointer, kept inside the tile.
+      const tile = t.root.getBoundingClientRect(), m = t.menu.getBoundingClientRect();
+      t.menu.style.left = `${Math.max(4, Math.min(x - tile.left, tile.width - m.width - 4))}px`;
+      t.menu.style.top = `${Math.max(4, Math.min(y - tile.top, tile.height - m.height - 4))}px`;
+      t.end.focus();
+      draw();
+    }
+
+    function closeMenu() {
+      if (!picked) return;
+      picked = null;
+      t.menu.hidden = true;
+      draw();
+    }
+
+    function result(pick, r) {
+      const { name } = pick, n = pick.pids.length;
+      if (!r) return { text: `Couldn't end ${name}`, bad: true };
+      if (r.own) return { text: "That's Oriel: quit it from the tray icon", bad: true };
+      if (r.denied && !r.ended) return { text: `Windows refused to end ${name}`, title: REFUSED, bad: true };
+      if (r.denied) return { text: `Ended ${r.ended} of ${n} ${name}; Windows refused ${r.denied}`, title: REFUSED, bad: true };
+      if (!r.ended) return { text: `${name} had already exited` };
+      return { text: n > 1 ? `Ended ${r.ended} ${name} processes` : `Ended ${name}` };
+    }
+
+    t.rows.addEventListener("contextmenu", e => {
+      const pick = target(e.target.closest(".r")?.dataset.k ?? "");
+      if (pick) openMenu(pick, e.clientX, e.clientY);
+    });
+    t.end.addEventListener("click", async () => {
+      const pick = picked;
+      if (!pick) return;
+      t.end.disabled = true;
+      const r = await window.__TAURI__.core.invoke("end_processes", { pids: pick.pids, seen: pick.seen })
+        .catch(e => (console.warn(e), null));
+      closeMenu();
+      note = { ...result(pick, r), until: Date.now() + NOTE_MS };
+      refresh();
+    });
+    t.menu.addEventListener("keydown", e => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation(); // or Escape also closes the settings
+      closeMenu();
+    });
+    // Anything else closes it: a click elsewhere, scrolling, leaving the window.
+    document.addEventListener("pointerdown", e => { if (!t.menu.contains(e.target)) closeMenu(); }, true);
+    addEventListener("blur", closeMenu);
 
     function syncHead() {
       for (const b of t.head.querySelectorAll("[data-sort]")) {
@@ -236,6 +315,7 @@ register("processes", {
       q.dispatchEvent(new Event("input"));
     });
     t.list.addEventListener("scroll", () => {
+      closeMenu();
       if (!queued) { queued = true; requestAnimationFrame(draw); }
     }, { passive: true });
     new ResizeObserver(() => draw()).observe(t.list);
@@ -246,6 +326,7 @@ register("processes", {
       update(s) {
         if (!s.procs) return; // history samples leave the list out
         procs = s.procs;
+        seen = s.t;
         refresh();
       },
     };

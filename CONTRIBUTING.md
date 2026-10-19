@@ -57,7 +57,8 @@ nothing. Nearly all of Oriel's memory is the WebView2 page; the Rust backend tha
 sensors is about 11 MB.
 
 The page can only ask Windows to open a fixed list of things (Task Manager, Resource Monitor
-and `ms-settings:` pages). See `run_action` in `main.rs`.
+and `ms-settings:` pages), and end processes the user picks. See `run_action` and
+`end_processes` in `main.rs`.
 
 ## Writing a widget
 

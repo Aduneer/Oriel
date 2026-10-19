@@ -13,6 +13,9 @@ and Windows versions you tried.
   LibreHardwareMonitor's web server, at the address in Settings (your own PC by default).
 - The dashboard page can't run programs. It can ask Windows to open Task Manager, Resource
   Monitor or a Settings page, and nothing else (`run_action` in `src-tauri/src/main.rs`).
+- It can end a process you pick in the process list, after you confirm, with your own rights
+  (`end_processes`). It checks the process is still the one you saw, since Windows reuses
+  process ids.
 - It runs as you, without admin rights, and installs per user.
 - Releases are built by GitHub Actions from the tagged commit. Each release lists the SHA-256 of
   its files in `SHA256SUMS.txt`. They aren't code-signed yet.

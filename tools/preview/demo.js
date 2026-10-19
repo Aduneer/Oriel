@@ -223,6 +223,8 @@
     }
   })(TREE, 0);
   const RUSTC = Array.from({ length: 8 }, newPid);
+  const PROTECTED = new Set(["System", "Registry", "smss", "Memory Compression", "Secure System", "csrss", "wininit", "services",
+    "svchost", "lsass", "LsaIso", "winlogon", "fontdrvhost", "dwm", "MsMpEng", "MpDefenderCoreService", "NisSrv", "SecurityHealthService"]);
 
   function procs(s) {
     const out = [];
@@ -274,6 +276,19 @@
             };
           case "save_settings": settings = structuredClone(args.settings); return settings;
           case "set_autostart": return args.enabled;
+          case "end_processes": {
+            // As on a real PC: Windows' own processes refuse, and Oriel won't end itself.
+            const r = { ended: 0, denied: 0, gone: 0, own: false };
+            for (const pid of args.pids) {
+              const i = LIVE.findIndex(p => p.pid === pid);
+              const name = LIVE[i]?.node.name;
+              if (i < 0) r.gone++;
+              else if (name === "oriel") r.own = true;
+              else if (PROTECTED.has(name)) r.denied++;
+              else { LIVE.splice(i, 1); r.ended++; }
+            }
+            return r;
+          }
           default: return null; // window and Windows actions do nothing here
         }
       },

@@ -125,8 +125,30 @@ pub struct SYSTEM_POWER_STATUS {
 
 pub const DRIVE_FIXED: u32 = 3;
 
+pub const PROCESS_TERMINATE: u32 = 0x0001;
+pub const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
+pub const ERROR_ACCESS_DENIED: i32 = 5;
+
+/// 100 ns ticks since 1601 (UTC), in two halves.
+#[repr(C)]
+#[derive(Default)]
+pub struct FILETIME {
+    pub lo: u32,
+    pub hi: u32,
+}
+
+impl FILETIME {
+    pub fn ticks(&self) -> i64 {
+        ((self.hi as i64) << 32) | self.lo as i64
+    }
+}
+
 #[link(name = "kernel32", kind = "raw-dylib")]
 extern "system" {
+    pub fn OpenProcess(access: u32, inherit: i32, pid: u32) -> HANDLE;
+    pub fn GetProcessTimes(process: HANDLE, created: *mut FILETIME, exited: *mut FILETIME, kernel: *mut FILETIME, user: *mut FILETIME) -> i32;
+    pub fn TerminateProcess(process: HANDLE, exit_code: u32) -> i32;
+    pub fn CloseHandle(handle: HANDLE) -> i32;
     pub fn GlobalMemoryStatusEx(buf: *mut MEMORYSTATUSEX) -> i32;
     pub fn K32GetPerformanceInfo(info: *mut PERFORMANCE_INFORMATION, cb: u32) -> i32;
     pub fn GetSystemPowerStatus(status: *mut SYSTEM_POWER_STATUS) -> i32;

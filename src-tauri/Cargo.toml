@@ -1,6 +1,6 @@
 [package]
 name = "oriel"
-version = "0.2.0"
+version = "0.2.1"
 description = "A second-screen command center for Windows"
 license = "MIT"
 edition = "2021"

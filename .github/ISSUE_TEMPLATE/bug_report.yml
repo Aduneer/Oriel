@@ -1,0 +1,60 @@
+name: Bug report
+description: Something in Oriel doesn't work, or works wrongly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. A quick search of the existing issues first saves us both a step.
+        For a security problem, please use **Security → Report a vulnerability** instead, so it stays private.
+
+  - type: input
+    id: version
+    attributes:
+      label: Oriel version
+      description: At the bottom of Settings (the gear, or <kbd>,</kbd>).
+      placeholder: "0.2.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you run it
+      options:
+        - Installer (setup.exe)
+        - Portable zip
+        - Built from source
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      description: Settings → System → About, under Windows specifications.
+      placeholder: "Windows 11 24H2"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen
+      description: The steps, if you know them. "It happens after a few hours" helps too.
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots, hardware, anything else
+      description: |
+        Your GPU and screens help with display and sensor problems.
+        Before you attach a screenshot, check it doesn't show anything private: window titles, calendar events, process names.

@@ -1,14 +1,16 @@
 <div align="center">
 
-<img src="assets/oriel.svg" width="112" alt="">
-
-# Oriel
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
+  <img src="assets/banner-light.svg" width="640" alt="Oriel">
+</picture>
 
 **A command center for your second screen, on Windows.**
 
 Your CPU, GPU, memory, network, disks and processes, plus what's playing, the weather and your<br>
 calendar, on one calm, full-screen dashboard you can read from across the desk and leave running all day.
 
+[![Latest release](https://img.shields.io/github/v/release/Aduneer/Oriel?color=%233987e5)](../../releases/latest)
 [![MIT license](https://img.shields.io/badge/license-MIT-3987e5)](LICENSE)
 ![Windows 10 and 11](https://img.shields.io/badge/Windows-10%20%C2%B7%2011-3987e5)
 ![Built with Rust and Tauri 2](https://img.shields.io/badge/Rust-Tauri%202-9085e9?logo=rust)
@@ -17,10 +19,7 @@ calendar, on one calm, full-screen dashboard you can read from across the desk a
 
 </div>
 
-<picture>
-  <source media="(prefers-color-scheme: light)" srcset="docs/images/dashboard-light.png">
-  <img alt="The Oriel dashboard: CPU, GPU and memory graphs across the top; network, disk and a process list below" src="docs/images/dashboard-dark.png">
-</picture>
+<img alt="Oriel running for a few seconds: the Resources page with CPU, GPU, memory, network, disk and process tiles; the Desk page with weather, calendar, now playing, gauges, the volume mixer and open windows; Edit layout on that page; then Resources in the Nord theme, light" src="docs/images/demo.webp">
 
 macOS and Linux desktops make it easy to keep an eye on your machine. Windows
 gives you Task Manager, a window you open when something's already wrong.
@@ -264,6 +263,12 @@ that for the WebView2 page. While its window is hidden it draws nothing.
 **Can I use it with one screen?**
 Yes. It opens as a normal window there; <kbd>F11</kbd> makes it full screen.
 
+**How is it different from Rainmeter?**
+Rainmeter puts skins on your desktop and can be made into almost anything, given the right
+skins and some editing of their settings files. Oriel is one finished dashboard for a screen of
+its own: it works as soon as it opens, and its tiles do things, like ending a process, muting
+an app or bringing a window to the front.
+
 **Why is the CPU temperature labelled ACPI?**
 See [Sensors](#sensors): Windows doesn't give normal programs the real CPU sensor, and
 LibreHardwareMonitor fills that gap.
@@ -274,24 +279,22 @@ note under [Install](#install).
 
 ## Roadmap
 
-- [x] Dashboard, widgets, settings, tray icon, six themes
-- [x] Process list with search, sorting, groups and a tree
-- [x] Installer and portable zip, built by GitHub Actions
-- [x] End a process from the list
-- [x] Now playing, with media controls
-- [x] Pages: several dashboards, each with its own widgets
-- [x] Volume mixer
-- [x] Calendar (from an ICS link) and weather
-- [x] Open windows
-- [x] Drag-and-drop layout editor and gauges
-- [x] Widgets from a plugin folder
-- [ ] Signed releases, and winget
+What's next. What's already in Oriel is in the [release notes](../../releases).
+
+- Signed releases, so SmartScreen and Smart App Control know who made Oriel, and then winget
+- Layouts for small and bar-shaped screens, like 1920×480 and 2560×720 panels and small
+  portrait displays
+- A **Check for updates** button that asks GitHub only when you press it
+- A [Scoop](https://scoop.sh) package
+
+Something you'd like to see? Say so in [Discussions](../../discussions/categories/ideas).
 
 ## Contributing
 
-Bug reports, ideas and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers
-building from source, how Oriel works, writing a widget and working on the dashboard without
-building the Rust side.
+Bug reports, ideas and pull requests are welcome: [open an issue](../../issues/new/choose) for a
+bug, or start a [discussion](../../discussions) for an idea or a question.
+[CONTRIBUTING.md](CONTRIBUTING.md) covers building from source, how Oriel works, writing a
+widget and working on the dashboard without building the Rust side.
 
 ## License
 

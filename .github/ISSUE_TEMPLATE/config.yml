@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: An idea or a question
+    url: https://github.com/Aduneer/Oriel/discussions
+    about: New widgets, features and "how do I…" go to Discussions.
+  - name: A security problem
+    url: https://github.com/Aduneer/Oriel/security/advisories/new
+    about: Report it privately, as SECURITY.md describes.

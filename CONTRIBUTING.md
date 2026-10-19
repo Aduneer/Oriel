@@ -193,6 +193,8 @@ Options go after the page's address, for example `?palette=nord&theme=light`, `?
 
 Add `-Screenshots` to render the images in the README again (it uses Edge or Chrome,
 headless). The demo data is seeded, so the pictures only change when the dashboard does.
+`-Demo` renders the animation at the top of the README (`docs/images/demo.webp`) and an MP4 of
+it for posts; it needs [ffmpeg](https://ffmpeg.org) on the PATH (`winget install Gyan.FFmpeg`).
 
 ## Making a release
 

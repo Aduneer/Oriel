@@ -13,6 +13,9 @@ instead, using headless Edge (or Chrome).
 With -Installer it renders the installer's sidebar and header images (24-bit BMPs, which is what
 NSIS needs) into src-tauri/windows.
 
+With -Demo it renders the README's animation (docs/images/demo.webp) and an MP4 of it for posting
+elsewhere. That needs ffmpeg (winget install Gyan.FFmpeg).
+
 .EXAMPLE
 powershell -ExecutionPolicy RemoteSigned -File tools\preview\preview.ps1
 
@@ -21,8 +24,11 @@ powershell -ExecutionPolicy RemoteSigned -File tools\preview\preview.ps1 -Screen
 
 .EXAMPLE
 powershell -ExecutionPolicy RemoteSigned -File tools\preview\preview.ps1 -Installer
+
+.EXAMPLE
+powershell -ExecutionPolicy RemoteSigned -File tools\preview\preview.ps1 -Demo
 #>
-param([switch]$Screenshots, [switch]$Installer)
+param([switch]$Screenshots, [switch]$Installer, [switch]$Demo)
 
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
@@ -36,15 +42,15 @@ function Write-Page($path, $html) { [IO.File]::WriteAllText($path, $html, $utf8)
 # The real page, with relative links pointing back at ui/ and the demo backend loaded first.
 $html = [IO.File]::ReadAllText((Join-Path $ui "index.html"))
 $base = "<base href=`"$(Url "$ui\")`">"
-$demo = "<script src=`"$(Url (Join-Path $PSScriptRoot 'demo.js'))`"></script>"
+$demoScript = "<script src=`"$(Url (Join-Path $PSScriptRoot 'demo.js'))`"></script>"
 if (-not $html.Contains("<head>") -or -not $html.Contains('<script src="core.js">')) {
     throw "ui/index.html no longer has <head> or <script src=`"core.js`">; update preview.ps1 to match."
 }
-$html = $html.Replace("<head>", "<head>`n$base").Replace('<script src="core.js">', "$demo`n<script src=`"core.js`">")
+$html = $html.Replace("<head>", "<head>`n$base").Replace('<script src="core.js">', "$demoScript`n<script src=`"core.js`">")
 $page = Join-Path $out "index.html"
 Write-Page $page $html
 
-if (-not $Screenshots -and -not $Installer) {
+if (-not $Screenshots -and -not $Installer -and -not $Demo) {
     Start-Process (Url $page)
     Write-Host "Opened $page"
     Write-Host "Options go after the address: ?palette=nord&theme=light&settings=1"
@@ -77,14 +83,23 @@ $raw = Join-Path $out "raw"
 $images = Join-Path $root "docs\images"
 New-Item -ItemType Directory -Force $raw, $images | Out-Null
 
-function Shot($url, $file, $w, $h, $scale = 1, [switch]$Transparent) {
+# $budget: how many seconds of the page's (virtual) clock run before the picture is taken.
+function Shot($url, $file, $w, $h, $scale = 1, [switch]$Transparent, $budget = 5) {
     $a = @("--headless=new", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=$scale", "--lang=en-GB", "--log-level=3",
-        "--window-size=$w,$h", "--virtual-time-budget=5000", "--user-data-dir=$profileDir", "--screenshot=$file")
+        "--window-size=$w,$h", "--virtual-time-budget=$($budget * 1000)", "--user-data-dir=$profileDir", "--screenshot=$file")
     if ($Transparent) { $a += "--default-background-color=00000000" }
     $a = $a | ForEach-Object { if ($_ -match " ") { "`"$_`"" } else { $_ } }
     Remove-Item $file -ErrorAction SilentlyContinue
     & $browser @a $url | Out-Null # piping makes PowerShell wait for the browser to exit
     if (-not (Test-Path $file)) { throw "No screenshot came out for $url" }
+}
+
+# Frame a shot: rounded corners on a transparent background.
+$style = "html,body{margin:0;background:transparent;overflow:hidden}img{display:block;border-radius:18px}"
+function Framed($name, $src, $w = $W, $h = $H, $scale = 1, $dir = $images) {
+    $p = Join-Path $out "$name.html"
+    Write-Page $p "<!doctype html><meta charset=`"utf-8`"><style>$style</style><img src=`"$(Url $src)`" width=`"$w`" height=`"$h`">"
+    Shot (Url $p) (Join-Path $dir "$name.png") $w $h $scale -Transparent
 }
 
 # ---- installer images -----------------------------------------------------------------
@@ -134,12 +149,50 @@ if ($Installer) {
         $bmp.Dispose()
     }
     Get-ChildItem $windows -Filter *.bmp | Format-Table Name, @{ n = "KB"; e = { [math]::Round($_.Length / 1KB) } } -AutoSize
-    if (-not $Screenshots) { return }
+    if (-not $Screenshots -and -not $Demo) { return }
 }
 
 $W = 1920; $H = 1080
 $time = "time=2026-10-18T14:32"
 $palettes = [ordered]@{ oriel = "Oriel"; catppuccin = "Catppuccin"; nord = "Nord"; gruvbox = "Gruvbox"; "rose-pine" = "Ros&eacute; Pine"; solarized = "Solarized" }
+
+# ---- demo animation --------------------------------------------------------------------
+# The dashboard one frame per second, as it updates: Resources, Desk, Edit layout, then a light
+# theme. The clock is virtual and the data seeded, so frame k is the dashboard k seconds in, every
+# time. ffmpeg makes an animated WebP of the framed shots for the README (smaller than a GIF, and
+# not cut down to 256 colors) and an MP4 of the plain ones for posting elsewhere.
+if ($Demo) {
+    $ffmpeg = (Get-Command ffmpeg -ErrorAction SilentlyContinue).Source
+    if (-not $ffmpeg) { throw "The demo needs ffmpeg on the PATH: winget install Gyan.FFmpeg" }
+    $frames = Join-Path $out "demo"
+    Remove-Item $frames -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory -Force $frames | Out-Null
+    $scenes = @(
+        @{ q = "palette=oriel&theme=dark&page=1"; n = 4 },
+        @{ q = "palette=oriel&theme=dark&page=2"; n = 4 },
+        @{ q = "palette=oriel&theme=dark&page=2&edit=1"; n = 3 },
+        @{ q = "palette=nord&theme=light&page=1"; n = 4 }
+    )
+    $k = 0
+    foreach ($s in $scenes) {
+        for ($i = 0; $i -lt $s.n; $i++) {
+            Write-Host "Rendering demo frame $k"
+            $f = Join-Path $frames ("raw-{0:d3}.png" -f $k)
+            Shot "$(Url $page)?$($s.q)&$time" $f $W $H -budget (6 + $k)
+            Framed ("frame-{0:d3}" -f $k) $f -dir $frames
+            $k++
+        }
+    }
+    $webp = Join-Path $images "demo.webp"
+    & $ffmpeg -hide_banner -loglevel error -y -framerate 1 -i (Join-Path $frames "frame-%03d.png") `
+        -vf "scale=1280:-1:flags=lanczos" -pix_fmt yuva420p -c:v libwebp_anim -quality 80 -loop 0 $webp
+    $mp4 = Join-Path $out "oriel-demo.mp4"
+    & $ffmpeg -hide_banner -loglevel error -y -framerate 1 -i (Join-Path $frames "raw-%03d.png") `
+        -vf "fps=30,format=yuv420p" -c:v libx264 -crf 18 -preset slow -movflags +faststart $mp4
+    Get-Item $webp, $mp4 | Format-Table FullName, @{ n = "KB"; e = { [math]::Round($_.Length / 1KB) } } -AutoSize
+    if (-not $Screenshots) { return }
+}
+
 foreach ($mode in "dark", "light") {
     foreach ($id in $palettes.Keys) {
         Write-Host "Rendering $id ($mode)"
@@ -160,15 +213,7 @@ foreach ($mode in "dark", "light") {
     Shot "$(Url $page)?palette=oriel&theme=$mode&page=2&$time" (Join-Path $raw "widgets-$mode.png") $W $H
 }
 
-# Frame the shots: rounded corners on a transparent background, and a grid of the themes.
-$style = "html,body{margin:0;background:transparent;overflow:hidden}img{display:block;border-radius:18px}"
-function Framed($name, $src, $w = $W, $h = $H, $scale = 1) {
-    $p = Join-Path $out "$name.html"
-    Write-Page $p "<!doctype html><meta charset=`"utf-8`"><style>$style</style><img src=`"$(Url $src)`" width=`"$w`" height=`"$h`">"
-    Shot (Url $p) (Join-Path $images "$name.png") $w $h $scale -Transparent
-}
-Framed "dashboard-dark" (Join-Path $raw "oriel-dark.png")
-Framed "dashboard-light" (Join-Path $raw "oriel-light.png")
+# Frame the shots, and a grid of the themes.
 Framed "settings" (Join-Path $raw "settings-dark.png")
 Framed "process-tree-dark" (Join-Path $raw "tree-dark.png") $TW $TH 2
 Framed "process-tree-light" (Join-Path $raw "tree-light.png") $TW $TH 2

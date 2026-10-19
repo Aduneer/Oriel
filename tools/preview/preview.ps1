@@ -98,6 +98,12 @@ foreach ($mode in "dark", "light") {
     Write-Host "Rendering process tree ($mode)"
     Shot "$(Url $page)?palette=oriel&theme=$mode&layout=processes&procs=tree&click=Code,chrome&$time" (Join-Path $raw "tree-$mode.png") $TW $TH 2
 }
+# A second page with the widgets you add yourself, so the header shows the page tabs too.
+$desk = "pages=Resources:cpu,gpu,memory|network,disk,processes;Desk:weather,calendar,media|gauges,volume,windows&page=2"
+foreach ($mode in "dark", "light") {
+    Write-Host "Rendering widgets page ($mode)"
+    Shot "$(Url $page)?palette=oriel&theme=$mode&$desk&$time" (Join-Path $raw "widgets-$mode.png") $W $H
+}
 
 # Frame the shots: rounded corners on a transparent background, and a grid of the themes.
 $style = "html,body{margin:0;background:transparent;overflow:hidden}img{display:block;border-radius:18px}"
@@ -111,6 +117,8 @@ Framed "dashboard-light" (Join-Path $raw "oriel-light.png")
 Framed "settings" (Join-Path $raw "settings-dark.png")
 Framed "process-tree-dark" (Join-Path $raw "tree-dark.png") $TW $TH 2
 Framed "process-tree-light" (Join-Path $raw "tree-light.png") $TW $TH 2
+Framed "widgets-dark" (Join-Path $raw "widgets-dark.png")
+Framed "widgets-light" (Join-Path $raw "widgets-light.png")
 
 $gap = 30; $tw = ($W - 2 * $gap) / 3; $th = [math]::Round($tw * $H / $W); $label = 52
 $gh = 2 * ($th + $label) + $gap

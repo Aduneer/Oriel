@@ -6,8 +6,8 @@
 
 **A command center for your second screen, on Windows.**
 
-Your CPU, GPU, memory, network, disks and processes on one calm, full-screen dashboard,<br>
-readable from across the desk and light enough to leave running all day.
+Your CPU, GPU, memory, network, disks and processes, plus what's playing, the weather and your<br>
+calendar, on one calm, full-screen dashboard you can read from across the desk and leave running all day.
 
 [![MIT license](https://img.shields.io/badge/license-MIT-3987e5)](LICENSE)
 ![Windows 10 and 11](https://img.shields.io/badge/Windows-10%20%C2%B7%2011-3987e5)
@@ -55,25 +55,32 @@ needs your attention.
   (`chrome ×24`, click to see each one) or as a tree like btop, with branches you can fold
   away. Search it (<kbd>/</kbd>), sort by any column, and right-click to end a process or a
   whole group
-- **Now playing**: the track, artist and cover from Spotify, your browser or any app that shows
-  in Windows' media controls, with play/pause and skip. Add it in Settings → Layout
-- **Volume mixer**: your speakers' or headphones' volume and every app's, each with a mute
-  button, like Windows' own mixer. Add it in Settings → Layout
-- **Weather**: the temperature, conditions, today's high and low, the next hours and the next
-  days for a place you pick, from [Open-Meteo](https://open-meteo.com). Add it in Settings → Layout
-- **Calendar**: what's coming up in the next 7 or 14 days, from the calendar links (.ics) you
-  paste in: Google, Outlook, Apple and any other that publishes one. Recurring events, time
-  zones and all-day events work, and what's on now or next is highlighted. Add it in Settings → Layout
-- **Gauges**: dials for CPU and GPU load and temperature and for memory, with your warn and
-  critical limits marked on them. Add it in Settings → Layout
-- **Open windows**: the windows the taskbar and Alt+Tab would list. Click one to bring it to the
-  front (it's restored if minimized), or hover and press × to ask it to close. Search it, and
-  see which one is in front. Add it in Settings → Layout
 - **Battery**, uptime and a clock in the header
 
 <picture>
   <source media="(prefers-color-scheme: light)" srcset="docs/images/process-tree-light.png">
   <img alt="The process list as a tree: explorer, then Windows Terminal, PowerShell, cargo and the rustc processes of a build, with the Code and Chrome branches folded away" src="docs/images/process-tree-dark.png">
+</picture>
+
+More widgets to add in Settings → Layout, or with **Edit layout** (<kbd>E</kbd>), on a page of
+their own if you like:
+
+- **Now playing**: the track, artist and cover from Spotify, your browser or any app that shows
+  in Windows' media controls, with play/pause and skip
+- **Volume mixer**: your speakers' or headphones' volume and every app's, each with a mute
+  button, like Windows' own mixer
+- **Weather**: now, the next hours and the next days for a place you pick, from
+  [Open-Meteo](https://open-meteo.com)
+- **Calendar**: the next 7 or 14 days from the calendar links (.ics) you paste in, from Google,
+  Outlook, Apple or anything else that publishes one, recurring events and time zones included
+- **Gauges**: dials for CPU and GPU load and temperature and for memory, with your warn and
+  critical limits marked on them
+- **Open windows**: what the taskbar and Alt+Tab would list. Click one to bring it to the front,
+  or press its × to ask it to close
+
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/images/widgets-light.png">
+  <img alt="A second page of the dashboard: weather, calendar and now playing across the top; gauges, the volume mixer and open windows below" src="docs/images/widgets-dark.png">
 </picture>
 
 ## Themes
@@ -186,11 +193,10 @@ on. [`docs/examples/world-clock.js`](docs/examples/world-clock.js) is a small ex
 
 > [!WARNING]
 > A plugin is code that runs inside the dashboard with the same rights as Oriel's own widgets:
-> it can read everything on the dashboard and use what it can, including ending processes,
-> changing volume and opening Windows settings. Only use plugins from people you trust, like
+> it can read everything on the dashboard and in your settings (calendar links included), end
+> processes, change volume and open Windows settings. Only use plugins from people you trust, like
 > browser extensions. Oriel's content security policy keeps them from loading anything from the
-> internet, but that's a safety net, not a sandbox. Off by default; see
-> [SECURITY.md](SECURITY.md) for the details.
+> internet, but that's a safety net, not a sandbox. See [SECURITY.md](SECURITY.md) for the details.
 
 ## Sensors
 
@@ -212,8 +218,7 @@ and power while something is already using the GPU.
 ## Weather and calendar
 
 These two widgets are the only parts of Oriel that go online, and each only while it's on one of
-your pages. Without them Oriel makes no connections apart from the one to LibreHardwareMonitor on
-your own PC. Each goes to one kind of place, and nothing else is sent:
+your pages. Each goes to one kind of place, and nothing else is sent:
 
 - **Weather** asks [Open-Meteo](https://open-meteo.com) (free, no account) for the forecast about
   every 30 minutes, with the place's coordinates rounded to about a kilometre. Pick the place in
@@ -225,28 +230,24 @@ your own PC. Each goes to one kind of place, and nothing else is sent:
   work too.
 
 A calendar link is like a password: anyone who has it can read that calendar. Oriel keeps it in
-your settings file and shows it only in Settings, hidden until you press *Show*. It never shows it
-anywhere else, writes it in a log or puts it in an error message.
+your settings file and shows it only in Settings, hidden until you press *Show*, never in a log or
+an error message.
 
 Both use Windows' own secure connections (https only, with your PC's certificates and proxy
 settings). If a refresh fails, say because you're offline, the tile keeps showing what it had,
-marked *Out of date*, and tries again. The refresh button on a tile fetches again at once.
+marked *Out of date*, and tries again.
 
-Calendars can have recurring events (daily, weekly, monthly and yearly, with exceptions and
-moved or cancelled occurrences) in any time zone Windows knows, which covers what Google, Apple
-and Outlook write. Times show in your PC's time zone and clock format. A recurrence rule that uses
-something rarer (like "the 20th week of the year") shows its event once, rather than guessing.
+Recurring events (daily, weekly, monthly and yearly, with exceptions and moved or cancelled
+occurrences) work in any time zone Windows knows, and times show in your PC's own. A rarer rule
+(like "the 20th week of the year") shows its event once rather than guessing.
 
 ## FAQ
 
 **Does Oriel send my data anywhere?**
-Not unless you add the weather or calendar widget, and then only what's described under
-[Weather and calendar](#weather-and-calendar): the coordinates of the place you picked, and a
-request to each calendar link you pasted. There's no account, telemetry or update check. The
-only other connection it makes is to LibreHardwareMonitor's web server, at the address in
-Settings (your own PC by default), and only to read sensors. Plugins, if you turn them on, are
-scripts from you; Oriel itself sends nothing more, and its content security policy stops plugins
-making network requests.
+Only if you add the weather or calendar widget, and then only what
+[Weather and calendar](#weather-and-calendar) lists. There's no account, telemetry or update
+check. The only other connection is to LibreHardwareMonitor's web server, at the address in
+Settings (your own PC by default), to read sensors.
 
 **Does it slow my PC down?**
 With the dashboard on screen it uses about 6% of one CPU core and 140 MB of memory, most of

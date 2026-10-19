@@ -205,7 +205,9 @@ App Control and local toolchains don't matter:
 
 The installer is Tauri's NSIS installer. It installs per user, needs no admin rights and, when
 "Delete the application data" is ticked on uninstall, also removes the settings and the sign-in
-entry (`src-tauri/windows/installer-hooks.nsh`).
+entry (`src-tauri/windows/installer-hooks.nsh`). Its sidebar and header images are BMPs in
+`src-tauri/windows/`; `preview.ps1 -Installer` renders them again (same Edge or Chrome as
+`-Screenshots`).
 
 Releases aren't code-signed yet, so SmartScreen may warn about them and Smart App Control may
 block them. Signing would slot into the workflow's Build step once there's a certificate.

@@ -7,8 +7,8 @@ Writes a copy of ui/index.html to %TEMP%\oriel-preview that loads the real ui/ f
 in place of the Rust backend, then opens it in your default browser. Edit anything in ui/ and
 reload the page to see it.
 
-With -Screenshots it renders the README images in docs/images instead, using headless Edge
-(or Chrome).
+With -Screenshots it renders the README images and the repo's social preview in docs/images
+instead, using headless Edge (or Chrome).
 
 .EXAMPLE
 powershell -ExecutionPolicy RemoteSigned -File tools\preview\preview.ps1
@@ -126,5 +126,24 @@ foreach ($mode in "dark", "light") {
         "</style>" + ($cells -join ""))
     Shot (Url $p) (Join-Path $images "themes-$mode.png") $W $gh -Transparent
 }
+
+# The picture links to the repo show (GitHub: Settings > General > Social preview, which wants
+# a PNG under 1 MB at 1280x640). The dashboard runs off the right and bottom edges.
+Write-Host "Rendering social preview"
+$p = Join-Path $out "social-preview.html"
+Write-Page $p ("<!doctype html><meta charset=`"utf-8`"><style>" +
+    "html,body{margin:0;width:1280px;height:640px;overflow:hidden}" +
+    "body{background:radial-gradient(circle at 88% 10%,#9085e938,transparent 50%),radial-gradient(circle at 0 100%,#3987e52e,transparent 45%),linear-gradient(#1a1a21,#0c0c10);" +
+    "color:#f0efec;font-family:'Segoe UI Variable Text','Segoe UI',sans-serif}" +
+    ".t{position:absolute;left:80px;top:0;bottom:0;width:460px;display:flex;flex-direction:column;justify-content:center}" +
+    ".t img{width:104px;height:104px;margin-bottom:28px}" +
+    "h1{margin:0 0 18px;font:600 100px/1 'Segoe UI Variable Display','Segoe UI',sans-serif;letter-spacing:-2px}" +
+    "p{margin:0;font-size:33px;line-height:1.3;color:#b4b8c2}" +
+    ".s{margin-top:30px;font-size:21px;color:#7c818d}" +
+    ".d{position:absolute;left:600px;top:118px;width:960px;height:540px;border-radius:16px;box-shadow:0 30px 90px #000a,0 0 0 1px #ffffff14}" +
+    "</style><img class=`"d`" src=`"$(Url (Join-Path $raw 'oriel-dark.png'))`">" +
+    "<div class=`"t`"><img src=`"$(Url (Join-Path $root 'assets\oriel.svg'))`"><h1>Oriel</h1>" +
+    "<p>A command center for your second screen, on Windows.</p><div class=`"s`">Free and open source &middot; Rust + Tauri</div></div>")
+Shot (Url $p) (Join-Path $images "social-preview.png") 1280 640
 
 Get-ChildItem $images | Format-Table Name, @{ n = "KB"; e = { [math]::Round($_.Length / 1KB) } } -AutoSize

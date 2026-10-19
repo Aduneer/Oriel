@@ -113,9 +113,18 @@ To end something, right-click it and choose **End process** (or **End all** for 
 has your rights, not admin ones, so Windows won't let it end parts of Windows or apps running as
 administrator; the header says so when that happens.
 
+The dashboard can have several **pages**, each with its own widgets: say *Resources* for the
+graphs and *Media* for Now playing, which fits well on a page of its own. Add them in Settings →
+Layout. With two or more, tabs show in the header; click one, or press <kbd>1</kbd>–<kbd>9</kbd>
+or <kbd>PgUp</kbd>/<kbd>PgDn</kbd>. Graphs keep their history on the pages you aren't looking at,
+which aren't drawn until you switch to them, and Oriel opens on the page you last picked. For a
+screen you don't touch, **Cycle pages** moves on to the next page every so often, and waits
+while you're using the dashboard.
+
 | Key | |
 |---|---|
 | <kbd>,</kbd> | Settings |
+| <kbd>1</kbd>–<kbd>9</kbd>, <kbd>PgUp</kbd>/<kbd>PgDn</kbd> | Switch pages, with two or more |
 | <kbd>/</kbd> or <kbd>Ctrl</kbd>+<kbd>F</kbd> | Search the process list, or the settings while they're open |
 | <kbd>Esc</kbd> | Clear the search, close settings |
 | <kbd>F11</kbd> | Full screen on/off |
@@ -129,7 +138,8 @@ Changes apply and save as you make them, to `%APPDATA%\Oriel\settings.json`:
 
 - **Appearance**: dark, light or auto, the theme, how much history the graphs show, burn-in
   protection (shifts everything by a pixel or two every few minutes, for OLED screens)
-- **Layout**: which widgets show, in which rows and order
+- **Layout**: which widgets show, in which rows and order; pages to add, name, reorder or
+  delete, each with its own widgets; cycling through pages
 - **Display**: which screen, full screen or windowed
 - **System**: start at sign-in, how often to update, hardware acceleration
 - **Alerts**: when temperatures, memory and drive space count as high or critical
@@ -184,6 +194,7 @@ note under [Install](#install).
 - [x] Installer and portable zip, built by GitHub Actions
 - [x] End a process from the list
 - [x] Now playing, with media controls
+- [x] Pages: several dashboards, each with its own widgets
 - [ ] Calendar (from an ICS link) and weather
 - [ ] Volume mixer and open windows
 - [ ] Drag-and-drop layout editor and gauges

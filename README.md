@@ -13,7 +13,7 @@ readable from across the desk and light enough to leave running all day.
 ![Windows 10 and 11](https://img.shields.io/badge/Windows-10%20%C2%B7%2011-3987e5)
 ![Built with Rust and Tauri 2](https://img.shields.io/badge/Rust-Tauri%202-9085e9?logo=rust)
 
-[Install](#install) · [Features](#whats-on-it) · [Themes](#themes) · [FAQ](#faq) · [Contributing](CONTRIBUTING.md)
+[Install](#install) · [Features](#whats-on-it) · [Themes](#themes) · [Plugins](#plugins) · [FAQ](#faq) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -40,7 +40,7 @@ needs your attention.
 - **One click into Windows.** Each tile's ↗ button opens the matching part of Windows: Task
   Manager from the process list, Storage settings from the disk tile, and so on.
 - **Yours to change.** Drag tiles around and resize them, six themes in dark and light, and
-  widgets in plain JavaScript if you want to write your own.
+  widgets in plain JavaScript if you want to write your own, even from a [plugin folder](#plugins).
 
 ## What's on it
 
@@ -160,11 +160,30 @@ Changes apply and save as you make them, to `%APPDATA%\Oriel\settings.json`:
   widgets; cycling through pages
 - **Display**: which screen, full screen or windowed
 - **System**: start at sign-in, how often to update, hardware acceleration
+- **Plugins**: load widgets from the plugins folder (off by default, see [Plugins](#plugins))
 - **Alerts**: when temperatures, memory and drive space count as high or critical
 - **Sensors**: NVIDIA sensors on/off, LibreHardwareMonitor address
 
 **Hardware acceleration** is off by default. Drawing a few graphs once a second doesn't need
 the GPU, and without it WebView2 uses about 130 MB less memory for slightly more CPU.
+
+## Plugins
+
+You can add your own widgets without rebuilding Oriel. Turn on **Settings → Plugins → Load
+widgets from the plugins folder**, click **Open plugins folder** (it's
+`%APPDATA%\Oriel\widgets`), drop in a widget as `name.js` (with an optional `name.css` beside
+it) and restart Oriel. It then shows in Settings → Layout, marked *(plugin)*. A widget that
+breaks becomes an error tile with its file name and message; the rest of the dashboard carries
+on. [`docs/examples/world-clock.js`](docs/examples/world-clock.js) is a small example, and
+[CONTRIBUTING.md](CONTRIBUTING.md#writing-a-plugin) is the guide to writing one.
+
+> [!WARNING]
+> A plugin is code that runs inside the dashboard with the same rights as Oriel's own widgets:
+> it can read everything on the dashboard and use what it can, including ending processes,
+> changing volume and opening Windows settings. Only use plugins from people you trust, like
+> browser extensions. Oriel's content security policy keeps them from loading anything from the
+> internet, but that's a safety net, not a sandbox. Off by default; see
+> [SECURITY.md](SECURITY.md) for the details.
 
 ## Sensors
 
@@ -188,7 +207,8 @@ and power while something is already using the GPU.
 **Does Oriel send my data anywhere?**
 No. There's no account, telemetry or update check. The only connection it makes is to
 LibreHardwareMonitor's web server, at the address in Settings (your own PC by default), and
-only to read sensors.
+only to read sensors. Plugins, if you turn them on, are scripts from you; Oriel itself still
+sends nothing and its content security policy stops them making network requests.
 
 **Does it slow my PC down?**
 With the dashboard on screen it uses about 6% of one CPU core and 140 MB of memory, most of
@@ -217,7 +237,7 @@ note under [Install](#install).
 - [ ] Calendar (from an ICS link) and weather
 - [x] Open windows
 - [x] Drag-and-drop layout editor and gauges
-- [ ] Widgets from a plugin folder
+- [x] Widgets from a plugin folder
 - [ ] Signed releases, and winget
 
 ## Contributing

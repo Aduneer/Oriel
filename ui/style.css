@@ -498,6 +498,13 @@ kbd { font-family: inherit; font-size: 0.8em; padding: 0.05em 0.4em; border: 1px
   .status #uptime, .clock #date { display: none; }
 }
 
+/* Plugin widgets: the tile a broken plugin gets in place of its own, and the problems list in Settings. */
+.tile.plugin-error { --hue: var(--crit); gap: 0.5rem; justify-content: flex-start; }
+.plugin-error .file { font-family: "Cascadia Mono", Consolas, monospace; font-size: 0.9rem; color: var(--ink-2); word-break: break-all; }
+.plugin-error .msg { color: var(--muted); font-size: 0.95rem; line-height: 1.45; overflow: auto; }
+.pproblems { margin: 0; padding-left: 1.1rem; color: var(--muted); font-size: 0.8rem; line-height: 1.5; }
+.pproblems b { color: var(--ink-2); font-weight: 600; }
+
 /* ---- gauges ------------------------------------------------------------------------- */
 .gauges .dials {
   flex: 1 1 0; min-height: 0; overflow: hidden;

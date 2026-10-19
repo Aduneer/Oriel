@@ -9,6 +9,7 @@ mod lhm;
 mod media;
 mod openwin;
 mod pdh;
+mod plugins;
 mod procs;
 mod settings;
 
@@ -65,7 +66,12 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show(app)))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
-        .invoke_handler(tauri::generate_handler![hello, save_settings, set_autostart, toggle_fullscreen, run_action, end_processes, media_control, media_art, set_volume, focus_window, close_window, restart])
+        .invoke_handler(tauri::generate_handler![hello, save_settings, set_autostart, toggle_fullscreen, run_action, end_processes, media_control, media_art, set_volume, focus_window, close_window, restart, list_plugins])
+        // Widgets from the plugin folder; answers nothing unless the setting is on.
+        .register_uri_scheme_protocol(plugins::SCHEME, |ctx, request| {
+            let enabled = ctx.app_handle().state::<SettingsState>().0.lock().unwrap().plugins;
+            plugins::serve(&plugins::dir(), enabled, request.method().as_str(), request.uri().path())
+        })
         .setup(|app| {
             let settings = Settings::load().clamp();
             let lhm = (!settings.lhm_url.is_empty()).then(|| settings.lhm_url.clone());
@@ -208,7 +214,16 @@ fn action_target(name: &str) -> Option<&str> {
 
 #[tauri::command]
 fn run_action(name: String) -> Result<(), String> {
-    let target = action_target(&name).ok_or_else(|| format!("unknown action: {name}"))?;
+    // The one place that takes a path: always the plugin folder, never one the page names.
+    let folder = (name == "plugins-folder").then(|| {
+        let dir = plugins::dir();
+        let _ = std::fs::create_dir_all(&dir);
+        dir.display().to_string()
+    });
+    let target = match &folder {
+        Some(dir) => dir.as_str(),
+        None => action_target(&name).ok_or_else(|| format!("unknown action: {name}"))?,
+    };
     let (op, file) = (ffi::wide("open"), ffi::wide(target));
     // ShellExecute rather than spawning: Task Manager asks for elevation, and ms-settings: is a URI.
     let r = unsafe { ffi::ShellExecuteW(0, op.as_ptr(), file.as_ptr(), std::ptr::null(), std::ptr::null(), ffi::SW_SHOWNORMAL) };
@@ -273,6 +288,13 @@ fn focus_window(hwnd: u64, pid: u32) -> Result<(), String> {
 #[tauri::command]
 fn close_window(hwnd: u64, pid: u32) -> Result<(), String> {
     openwin::close(hwnd, pid)
+}
+
+/// The plugin folder's widgets, for the page to load. Empty unless the setting is on.
+#[tauri::command]
+fn list_plugins(settings: State<SettingsState>) -> Vec<plugins::Plugin> {
+    let enabled = settings.0.lock().unwrap().plugins;
+    plugins::list(&plugins::dir(), enabled)
 }
 
 /// For settings that are only read at startup (sensor sources).

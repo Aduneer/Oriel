@@ -4,7 +4,7 @@
 //!
 //! These calls go through the player and can be slow, so they run on a thread of their own and
 //! never hold up the sampler. The sampler asks for a fresh read each tick, but only while the
-//! dashboard is on screen and the widget is in the layout; otherwise the thread just waits.
+//! dashboard is on screen and the widget is on one of its pages; otherwise the thread just waits.
 
 use base64::Engine;
 use serde::Serialize;

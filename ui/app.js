@@ -1,16 +1,24 @@
 "use strict";
-// Boot, layout and the sample loop. The backend pushes a "sample" event each tick while the window is visible.
+// Boot, layout, pages and the sample loop. The backend pushes a "sample" event each tick while the window is visible.
 {
 const O = Oriel;
-const { $, el, setText, setHTML, fmt } = O;
+const { $, el, esc, setText, setHTML, fmt } = O;
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 
-let mounted = [];   // every tile on the page: {root, update}
-let latest = null;  // newest sample, re-rendered when thresholds change
+let pages = [];     // one per settings page: {root, tiles: [{root, update}], charts}
+let current = 0;    // the page on screen
+let latest = null;  // newest sample, re-rendered when thresholds change or another page comes up
 let pending = null; // newest sample that arrived while the page was hidden
 let lastAt = 0;
 let shiftTimer = 0;
+let rotateTimer = 0;
+let lastInput = 0;  // when someone last touched the dashboard; auto-rotate waits for them
+
+// Which page was on screen is a per-screen convenience, so it lives in the page's storage, not the settings file.
+const PAGE_KEY = "oriel.page";
+const remembered = () => { try { return Number(localStorage.getItem(PAGE_KEY)) || 0; } catch { return 0; } };
+const remember = i => { try { localStorage.setItem(PAGE_KEY, String(i)); } catch {} };
 
 async function boot() {
   const hello = await invoke("hello");
@@ -49,21 +57,45 @@ O.applySettings = () => {
       $("#stage").style.transform = `translate(${r()}px, ${r()}px)`;
     }, 180000);
   }
+  tabs();
+  rotateLater();
   if (latest) render(latest);
   O.drawCharts();
 };
 
 // ---- layout ------------------------------------------------------------------------
+// Every page is built up front and only the one on screen is shown, so switching is instant and
+// the graphs on the others keep their history. Hidden pages get samples for their graphs but no drawing.
 function build(history) {
   const { info, settings, interval } = O.state;
   const grid = $("#grid");
-  grid.replaceChildren();
-  O.charts.length = 0;
-  mounted = [];
   const cap = Math.round(settings.graph_seconds / interval) + 1;
+  O.charts.length = 0;
+  latest = null;
+  pages = settings.pages.map(p => mount(p.layout, cap, settings.pages.length > 1));
+  grid.replaceChildren(...pages.map(p => p.root));
+
+  for (const s of history.slice(-cap)) for (const c of O.charts) c.push(s);
+  current = -1;
+  tabs();
+  showPage(remembered());
+  // History samples are slim (no process list or drives); the next tick fills those in.
+  if (history.length) render(history[history.length - 1]);
+  O.drawCharts();
+
+  $("#host").textContent = info.host;
+  $("#os").textContent = info.os;
+  document.title = `${info.host} · Oriel`;
+}
+
+/** One page's tiles, in rows. */
+function mount(layout, cap, many) {
+  const { info } = O.state;
+  const root = el(`<div class="page" hidden></div>`);
+  const page = { root, tiles: [], charts: [] };
   const rows = [], rowsPortrait = [];
 
-  for (const ids of settings.layout) {
+  for (const ids of layout) {
     const row = el(`<section class="row"></section>`);
     const cols = [];
     let h = 0;
@@ -78,7 +110,9 @@ function build(history) {
           chart(target, opts) {
             const c = new O.Chart(target, opts);
             c.cap = cap;
+            c.off = true; // until its page comes up
             O.charts.push(c);
+            page.charts.push(c);
             return c;
           },
         };
@@ -86,7 +120,7 @@ function build(history) {
           const w = def.create(ctx);
           w.root.dataset.widget = id;
           row.appendChild(w.root);
-          mounted.push(w);
+          page.tiles.push(w);
           cols.push(`${def.size.w}fr`);
           h = Math.max(h, def.size.h);
         } catch (e) {
@@ -96,30 +130,83 @@ function build(history) {
     }
     if (!cols.length) continue;
     row.style.setProperty("--cols", cols.join(" "));
-    grid.appendChild(row);
+    root.appendChild(row);
     rows.push(`${h}fr`);
     rowsPortrait.push(`${h * Math.ceil(cols.length / 2)}fr`); // portrait wraps rows into two columns
   }
   if (!rows.length) {
-    grid.appendChild(el(`<p class="empty">Nothing on the dashboard yet.<br><button type="button" data-open-settings>Open settings</button> to add widgets.</p>`));
+    root.appendChild(el(`<p class="empty">Nothing on ${many ? "this page" : "the dashboard"} yet.<br><button type="button" data-open-settings>Open settings</button> to add widgets.</p>`));
   }
-  grid.style.setProperty("--rows", rows.join(" ") || "1fr");
-  grid.style.setProperty("--rows-p", rowsPortrait.join(" ") || "1fr");
+  root.style.setProperty("--rows", rows.join(" ") || "1fr");
+  root.style.setProperty("--rows-p", rowsPortrait.join(" ") || "1fr");
+  return page;
+}
 
-  for (const s of history.slice(-cap)) for (const c of O.charts) c.push(s);
-  // History samples are slim (no process list or drives); the next tick fills those in.
-  if (history.length) render(history[history.length - 1]);
-  O.drawCharts();
+// ---- pages -------------------------------------------------------------------------
+/** Put page i on screen. Pages someone picks are remembered for next time; auto-rotate's aren't. */
+function showPage(i, pick = false) {
+  if (!pages.length) return;
+  i = Math.max(0, Math.min(pages.length - 1, i));
+  if (pick) remember(i);
+  rotateLater();
+  if (i === current) return;
+  current = i;
+  pages.forEach((p, k) => {
+    p.root.hidden = k !== i;
+    for (const c of p.charts) c.off = k !== i;
+  });
+  syncTabs();
+  O.hideTip();
+  // Its tiles skipped the samples while it was hidden. Its graphs size themselves and draw once laid out.
+  if (latest) render(latest);
+}
+const step = d => showPage((current + d + pages.length) % pages.length, true);
+O.pages = { current: () => current, show: showPage, remember };
 
-  $("#host").textContent = info.host;
-  $("#os").textContent = info.os;
-  document.title = `${info.host} · Oriel`;
+/** Tabs in the header, with two pages or more. */
+function tabs() {
+  const names = O.state.settings.pages.map(p => p.name);
+  const many = pages.length > 1;
+  const nav = $("#pages");
+  nav.hidden = !many;
+  $(".top").classList.toggle("paged", many);
+  setHTML(nav, many ? pages.map((_, i) => {
+    const name = esc(names[i] ?? `Page ${i + 1}`);
+    return `<button type="button" data-page="${i}" title="${name} (${i + 1})">${name}</button>`;
+  }).join("") : "");
+  syncTabs();
+}
+function syncTabs() {
+  for (const b of $("#pages").children) {
+    if (Number(b.dataset.page) === current) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
+  }
+}
+$("#pages").addEventListener("click", e => {
+  const b = e.target.closest("[data-page]");
+  if (b) showPage(Number(b.dataset.page), true);
+});
+
+/** Auto-rotate: the next page every so often, while nobody is using the dashboard or the settings. */
+function rotateLater() {
+  clearTimeout(rotateTimer);
+  const ms = (O.state.settings?.rotate_seconds || 0) * 1000;
+  if (!ms || pages.length < 2) return;
+  rotateTimer = setTimeout(function next() {
+    if (document.hidden) return; // starts again when the window is shown
+    const wait = lastInput + ms - Date.now();
+    if (wait > 0 || O.settingsPanel.isOpen()) rotateTimer = setTimeout(next, wait > 0 ? wait : ms);
+    else showPage((current + 1) % pages.length);
+  }, ms);
+}
+for (const type of ["pointermove", "pointerdown", "wheel", "keydown"]) {
+  addEventListener(type, () => (lastInput = Date.now()), { capture: true, passive: true });
 }
 
 // ---- per-sample rendering -------------------------------------------------------------
 function render(s) {
   latest = s;
-  for (const w of mounted) {
+  for (const w of pages[current]?.tiles ?? []) {
     try {
       w.update(s);
     } catch (e) {
@@ -204,11 +291,18 @@ document.addEventListener("keydown", e => {
   else if (e.key === "/") {
     e.preventDefault();
     focusSearch();
+  } else if (pages.length < 2 || O.settingsPanel.isOpen() || e.ctrlKey || e.altKey || e.metaKey) {
+    return;
+  } else if (/^[1-9]$/.test(e.key) && Number(e.key) <= pages.length) {
+    showPage(Number(e.key) - 1, true);
+  } else if (e.key === "PageDown" || e.key === "PageUp") {
+    e.preventDefault();
+    step(e.key === "PageDown" ? 1 : -1);
   }
 });
-/** "/" or Ctrl+F: search the settings when they're open, else the process list. */
+/** "/" or Ctrl+F: search the settings when they're open, else the process list on screen. */
 function focusSearch() {
-  const input = O.settingsPanel.isOpen() ? $("#settings .find input") : $(".procs .find input");
+  const input = O.settingsPanel.isOpen() ? $("#settings .find input") : pages[current] && $(".procs .find input", pages[current].root);
   if (!input) return;
   input.focus();
   input.select();
@@ -236,6 +330,7 @@ document.addEventListener("visibilitychange", () => {
   if (pending) render(pending);
   pending = null;
   O.drawCharts();
+  rotateLater();
 });
 // Shown again from the tray: the page got nothing while hidden, so reload history.
 listen("resync", () => boot());

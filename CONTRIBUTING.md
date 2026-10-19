@@ -82,7 +82,8 @@ powershell -ExecutionPolicy RemoteSigned -File tools\preview\preview.ps1
 ```
 
 Options go after the page's address, for example `?palette=nord&theme=light`,
-`?procs=tree` or `?layout=cpu,processes`. The top of `demo.js` lists them all.
+`?procs=tree`, `?layout=cpu,processes` or `?pages=Resources:cpu,gpu|processes;Media:media`.
+The top of `demo.js` lists them all.
 
 Add `-Screenshots` to render the images in the README again (it uses Edge or Chrome,
 headless). The demo data is seeded, so the pictures only change when the dashboard does.

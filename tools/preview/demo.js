@@ -4,6 +4,8 @@
 // URL options, all optional:
 //   palette=nord  theme=dark|light|auto  settings=1 (open the panel)  time=2026-10-18T14:32
 //   layout=cpu,gpu|processes (rows split by |)  procs=group|tree  click=chrome,Code (rows to open or close)
+//   pages=Resources:cpu,gpu,memory|network,disk,processes;Media:media,processes (pages split by ;)
+//   page=2 (the page on screen)  rotate=10 (seconds between pages)
 //   media=off (nothing playing)  audio=off (no output device)
 (() => {
   "use strict";
@@ -38,13 +40,22 @@
   if (["group", "tree"].includes(q.get("procs"))) {
     try { localStorage.setItem("oriel.processes.view", q.get("procs")); } catch {}
   }
-  const layout = q.get("layout")?.split("|").map(row => row.split(",").filter(Boolean)).filter(row => row.length);
+  if (q.get("page")) {
+    try { localStorage.setItem("oriel.page", String(Number(q.get("page")) - 1)); } catch {}
+  }
+  const rows = s => (s || "").split("|").map(row => row.split(",").filter(Boolean)).filter(row => row.length);
+  const layout = rows(q.get("layout"));
+  const pages = (q.get("pages") || "").split(";").filter(Boolean).map((p, i) => {
+    const at = p.indexOf(":");
+    return at < 0 ? { name: `Page ${i + 1}`, layout: rows(p) } : { name: p.slice(0, at).trim() || `Page ${i + 1}`, layout: rows(p.slice(at + 1)) };
+  }).slice(0, 9);
 
   let settings = {
     theme: ["dark", "light", "auto"].includes(q.get("theme")) ? q.get("theme") : "dark",
     palette: /^[a-z0-9-]{1,32}$/.test(q.get("palette") || "") ? q.get("palette") : "oriel",
     monitor: "auto", fullscreen: true, interval_ms: 1000, graph_seconds: 300,
-    layout: layout?.length ? layout : [["cpu", "gpu", "memory"], ["network", "disk", "processes"]],
+    pages: pages.length ? pages : [{ name: "Dashboard", layout: layout.length ? layout : [["cpu", "gpu", "memory"], ["network", "disk", "processes"]] }],
+    rotate_seconds: Number(q.get("rotate")) || 0,
     limits: { cpu_temp: [90, 97], gpu_temp: [83, 90], mem: [85, 95], drive: [90, 95] },
     burn_in_shift: true, gpu: false, nvml: true, lhm_url: "http://127.0.0.1:8085/data.json",
   };
@@ -301,6 +312,7 @@
 
   const listeners = {};
   const emit = () => listeners.sample && listeners.sample({ payload: full() });
+  let first = true; // click= and settings= act on the first start only, not on every rebuild
   window.__TAURI__ = {
     core: {
       async invoke(cmd, args) {
@@ -309,6 +321,8 @@
             // History has no process list, so send a full sample straight away.
             setTimeout(() => {
               emit();
+              if (!first) return;
+              first = false;
               for (const name of (q.get("click") || "").split(",").filter(Boolean)) {
                 const rows = [...document.querySelectorAll(".procs .r.x")];
                 rows.find(r => r.title.split(" · ")[0] === name)?.click();
@@ -320,7 +334,12 @@
               monitors: [{ index: 1, x: 0, y: 0, width: 2560, height: 1440, primary: true }, { index: 2, x: 2560, y: 0, width: 1920, height: 1080, primary: false }],
               settings_path: "%APPDATA%\\Oriel\\settings.json",
             };
-          case "save_settings": settings = structuredClone(args.settings); return settings;
+          case "save_settings": {
+            settings = structuredClone(args.settings);
+            // As settings.rs tidies page names.
+            settings.pages = settings.pages.slice(0, 9).map((p, i) => ({ ...p, name: p.name.trim().slice(0, 32).trim() || `Page ${i + 1}` }));
+            return settings;
+          }
           case "set_autostart": return args.enabled;
           case "media_art": return cover(TRACKS[player.track].hue);
           case "media_control": control(args.action); setTimeout(emit, 150); return null;

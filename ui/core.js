@@ -4,7 +4,7 @@
 
 const Oriel = (window.Oriel = {
   widgets: new Map(), // id -> definition, in registration order
-  charts: [],         // every chart on the page, fed one sample per tick
+  charts: [],         // every chart on every page, fed one sample per tick
   state: { info: null, settings: null, interval: 1, monitors: [], autostart: false, settingsPath: "" },
   tokens: {},         // CSS colors, read once per theme change rather than per frame
   fontPx: 16,
@@ -167,6 +167,7 @@ O.Chart = class Chart extends CanvasBox {
     this.fmt = fmt;
     this.data = series.map(() => []);
     this.cap = 2;
+    this.off = false; // on a page that isn't showing: keep taking samples, skip the drawing
   }
   push(sample) {
     this.series.forEach((s, i) => {
@@ -177,7 +178,7 @@ O.Chart = class Chart extends CanvasBox {
   }
   draw() {
     const { ctx, w, h } = this;
-    if (!w || !h || document.hidden) return;
+    if (!w || !h || this.off || document.hidden) return;
     const T = O.tokens;
     ctx.clearRect(0, 0, w, h);
     const fs = O.fontPx;
@@ -287,6 +288,6 @@ O.Bars = class Bars extends CanvasBox {
 };
 
 O.drawCharts = () => {
-  if (!document.hidden) for (const c of O.charts) c.draw();
+  if (!document.hidden) for (const c of O.charts) if (!c.off) c.draw();
 };
 }

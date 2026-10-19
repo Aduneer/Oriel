@@ -296,7 +296,7 @@ fn friendly_name(device: &IMMDevice) -> Option<String> {
 }
 
 /// "C:\…\Spotify.exe" -> "Spotify". Empty when Windows won't say (another user's process).
-fn exe_name(pid: u32) -> String {
+pub fn exe_name(pid: u32) -> String {
     use crate::ffi::{CloseHandle, OpenProcess, QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION};
     let mut buf = [0u16; 1024];
     let mut len = buf.len() as u32;

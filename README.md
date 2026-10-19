@@ -58,6 +58,9 @@ needs your attention.
   in Windows' media controls, with play/pause and skip. Add it in Settings → Layout
 - **Volume mixer**: your speakers' or headphones' volume and every app's, each with a mute
   button, like Windows' own mixer. Add it in Settings → Layout
+- **Open windows**: the windows the taskbar and Alt+Tab would list. Click one to bring it to the
+  front (it's restored if minimized), or hover and press × to ask it to close. Search it, and
+  see which one is in front. Add it in Settings → Layout
 - **Battery**, uptime and a clock in the header
 
 <picture>
@@ -199,7 +202,7 @@ note under [Install](#install).
 - [x] Pages: several dashboards, each with its own widgets
 - [x] Volume mixer
 - [ ] Calendar (from an ICS link) and weather
-- [ ] Open windows
+- [x] Open windows
 - [ ] Drag-and-drop layout editor and gauges
 - [ ] Widgets from a plugin folder
 - [ ] Signed releases, and winget

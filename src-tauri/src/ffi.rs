@@ -198,6 +198,38 @@ extern "system" {
     pub fn ShellExecuteW(hwnd: isize, op: *const u16, file: *const u16, params: *const u16, dir: *const u16, show: i32) -> isize;
 }
 
+// --- windows -------------------------------------------------------------------
+
+pub const GWL_EXSTYLE: i32 = -20;
+pub const GW_OWNER: u32 = 4;
+pub const SW_RESTORE: i32 = 9;
+pub const WM_CLOSE: u32 = 0x0010;
+pub const DWMWA_CLOAKED: u32 = 14;
+
+pub type WNDENUMPROC = unsafe extern "system" fn(hwnd: isize, lparam: isize) -> i32;
+
+#[link(name = "user32", kind = "raw-dylib")]
+extern "system" {
+    pub fn EnumWindows(callback: WNDENUMPROC, lparam: isize) -> i32;
+    pub fn IsWindow(hwnd: isize) -> i32;
+    pub fn IsWindowVisible(hwnd: isize) -> i32;
+    pub fn IsIconic(hwnd: isize) -> i32;
+    pub fn GetWindow(hwnd: isize, cmd: u32) -> isize;
+    pub fn GetWindowLongW(hwnd: isize, index: i32) -> i32;
+    pub fn GetWindowTextW(hwnd: isize, buf: *mut u16, max: i32) -> i32;
+    pub fn GetClassNameW(hwnd: isize, buf: *mut u16, max: i32) -> i32;
+    pub fn GetWindowThreadProcessId(hwnd: isize, pid: *mut u32) -> u32;
+    pub fn GetForegroundWindow() -> isize;
+    pub fn SetForegroundWindow(hwnd: isize) -> i32;
+    pub fn ShowWindow(hwnd: isize, cmd: i32) -> i32;
+    pub fn PostMessageW(hwnd: isize, msg: u32, wparam: usize, lparam: isize) -> i32;
+}
+
+#[link(name = "dwmapi", kind = "raw-dylib")]
+extern "system" {
+    pub fn DwmGetWindowAttribute(hwnd: isize, attr: u32, value: *mut c_void, size: u32) -> i32;
+}
+
 // --- helpers -------------------------------------------------------------------
 
 pub fn wide(s: &str) -> Vec<u16> {

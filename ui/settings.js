@@ -89,9 +89,10 @@ function render() {
           <p class="note">Each page is a dashboard of its own. Tabs in the header switch between them, and so do <kbd>1</kbd>–<kbd>9</kbd> and <kbd>PgUp</kbd> <kbd>PgDn</kbd>.</p>
           <div class="plist" id="s-pages"></div></div>
         <div class="stack" data-s="widgets tiles rows order arrange move add remove hide show reset drag pages tabs">
-          <p class="note"><span class="rows-title" data-rows-title></span>Drag widgets to reorder them or move them between rows. Widgets in a row share its width.</p>
+          <p class="note"><span class="rows-title" data-rows-title></span>Drag widgets to reorder them or move them between rows. <b>Edit layout</b> does that on the dashboard itself, and also resizes tiles and rows.</p>
           <div class="rows" id="s-rows"></div>
-          <div class="actions"><button class="btn" type="button" data-add-row>Add row</button>
+          <div class="actions"><button class="btn" type="button" data-edit-layout title="Move and resize tiles right on the dashboard (E)">Edit layout</button>
+            <button class="btn" type="button" data-add-row>Add row</button>
             <button class="btn" type="button" data-add-page>Add page</button>
             <button class="btn link" type="button" data-reset-layout><span class="say">Reset to default</span><span class="ask">Reset all pages?</span></button></div></div>
         <div class="field" data-rotate data-s="rotate cycle pages switch automatically slideshow carousel next"><label for="s-rotate">Cycle pages<span class="hint">Moves on to the next page while nobody is using the dashboard</span></label>
@@ -305,7 +306,8 @@ function setPages(pages, at = editing) {
   renderRows();
 }
 const layoutOf = () => S().pages[editing].layout;
-const setLayout = layout => setPages(S().pages.map((p, i) => (i === editing ? { ...p, layout } : p)));
+// The sizes saved with a layout only fit that layout, so the page goes back to the widgets' own sizes.
+const setLayout = layout => setPages(S().pages.map((p, i) => (i === editing ? { ...p, layout, cols: [], rows: [] } : p)));
 
 /** Edit page i, and show it on the dashboard behind the panel. */
 function pick(i) {
@@ -452,6 +454,7 @@ function wire() {
       if (del) return deletePage(i, del);
       return pick(i);
     }
+    if (t.closest("[data-edit-layout]")) return O.editor.start();
     if (t.closest("[data-add-page]")) return addPage();
     if (t.closest("[data-add-row]")) return setLayout([...layoutOf(), []]);
     const reset = t.closest("[data-reset-layout]");
@@ -531,7 +534,7 @@ function close() {
   const pages = S().pages;
   if (pages.some(p => p.layout.some(r => !r.length))) {
     O.pages.remember(editing);
-    save({ pages: pages.map(p => ({ ...p, layout: p.layout.filter(r => r.length) })) });
+    save({ pages: pages.map(p => (p.layout.every(r => r.length) ? p : { ...p, layout: p.layout.filter(r => r.length), cols: [], rows: [] })) });
   }
 }
 

@@ -9,6 +9,9 @@
 //   media=off (nothing playing)  audio=off (no output device)
 //   weather=none (no place chosen)  weather=error (can't load)  weather=stale (older data, last update failed)  units=f|c
 //   calendar=none (no links)  calendar=empty (no events)  calendar=error  calendar=stale (one calendar offline)  days=14
+//   edit=1 (start in Edit layout)  widths=2,1|1,1,1 (relative tile widths per row)  heights=1,2 (relative row heights)
+//     widths and heights apply to the first page, like a settings file saved by the layout editor
+//   hot=1 (temperatures and memory past the warn and critical limits, to see the gauges' bands)
 //   windows=none (nothing open)  windows=many (thirty windows)  windows=front (Oriel itself in front)
 (() => {
   "use strict";
@@ -53,6 +56,9 @@
     return at < 0 ? { name: `Page ${i + 1}`, layout: rows(p) } : { name: p.slice(0, at).trim() || `Page ${i + 1}`, layout: rows(p.slice(at + 1)) };
   }).slice(0, 9);
 
+  const nums = s => (s || "").split("|").map(r => r.split(",").map(Number).filter(n => n > 0));
+  const widths = nums(q.get("widths")), heights = nums(q.get("heights")).flat();
+
   let settings = {
     theme: ["dark", "light", "auto"].includes(q.get("theme")) ? q.get("theme") : "dark",
     palette: /^[a-z0-9-]{1,32}$/.test(q.get("palette") || "") ? q.get("palette") : "oriel",
@@ -69,6 +75,8 @@
     ],
     calendar_days: Number(q.get("days")) === 14 ? 14 : 7,
   };
+  if (widths.length) settings.pages[0].cols = widths;
+  if (heights.length) settings.pages[0].rows = heights;
   const GPU_ID = "0x00000000_0x0000e1c7";
   const info = {
     host: "DESKTOP-7Q2K4M", os: "Windows 11 24H2", version: "0.1.0",
@@ -151,6 +159,7 @@
     st.read += (st.readTo - st.read) * 0.6;
     st.write = download ? st.down * (0.9 + rnd() * 0.2) : st.write + (st.writeTo - st.write) * 0.6;
 
+    if (q.get("hot") === "1") { st.temp = 93 + noise() * 0.5; st.gtemp = 88 + noise() * 0.4; st.mem = 28.4 + noise() * 0.05; }
     const gpuSample = {
       id: GPU_ID, util: r1(st.gpu), vram_used: (st.vram + noise() * 0.02) * GB, shared_used: 0.15 * GB, asleep: false,
       temp: Math.round(st.gtemp), power: 14 + st.gpu * 1.8 + noise() * 3, power_limit: 200,
@@ -458,6 +467,7 @@
                 rows.find(r => r.title.split(" · ")[0] === name)?.click();
               }
               if (q.get("settings") === "1") Oriel.settingsPanel.open();
+              if (q.get("edit") === "1") Oriel.editor.start();
             }, 0);
             return {
               info, interval_ms: settings.interval_ms, history, settings, autostart: true,
@@ -467,7 +477,13 @@
           case "save_settings": {
             settings = structuredClone(args.settings);
             // As settings.rs tidies page names.
-            settings.pages = settings.pages.slice(0, 9).map((p, i) => ({ ...p, name: p.name.trim().slice(0, 32).trim() || `Page ${i + 1}` }));
+            settings.pages = settings.pages.slice(0, 9).map((p, i) => {
+              // As settings.rs: sizes are kept in range, and dropped when they don't match the layout.
+              const w = x => Math.min(8, Math.max(0.2, Number.isFinite(x) ? x : 1));
+              const cols = p.cols?.length === p.layout.length && p.cols.every((c, r) => c.length === p.layout[r].length) ? p.cols.map(c => c.map(w)) : [];
+              const rows = p.rows?.length === p.layout.length ? p.rows.map(w) : [];
+              return { ...p, cols, rows, name: p.name.trim().slice(0, 32).trim() || `Page ${i + 1}` };
+            });
             // As settings.rs tidies the weather place and the calendar links.
             if (settings.weather_place) {
               const p = settings.weather_place;

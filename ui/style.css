@@ -604,6 +604,63 @@ kbd { font-family: inherit; font-size: 0.8em; padding: 0.05em 0.4em; border: 1px
 .weather.tall .wstrip small { font-size: 0.8rem; }
 .weather { justify-content: space-between; }
 .weather .wstrip { flex: none; }
+/* ---- gauges ------------------------------------------------------------------------- */
+.gauges .dials {
+  flex: 1 1 0; min-height: 0; overflow: hidden;
+  display: grid; grid-auto-rows: minmax(0, 1fr); gap: 0.2rem 0.6rem; /* columns are set by gauges.js */
+}
+.dial { position: relative; min-width: 0; min-height: 0; }
+.dial canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* ---- edit layout (editor.js) -------------------------------------------------------- */
+.page { position: relative; }
+.tile.ed { position: relative; }
+.ed-cover {
+  position: absolute; inset: 0; z-index: 3; border-radius: inherit; cursor: grab; touch-action: none;
+  border: 2px dashed color-mix(in srgb, var(--accent) 65%, transparent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  transition: background 0.15s, border-color 0.15s;
+}
+.ed-cover:hover, .ed-cover:focus-visible { border-style: solid; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); outline: 0; }
+.ed-cover.dragging { cursor: grabbing; }
+.tile.lifted { opacity: 0.45; }
+.ed-name {
+  position: absolute; top: 0.5rem; left: 0.5rem; display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.2rem 0.6rem 0.2rem 0.4rem; border-radius: 7px; font-size: 0.9rem; font-weight: 600;
+  background: var(--surface-hi); color: var(--ink); border: 1px solid var(--border); box-shadow: 0 1px 4px var(--shadow);
+}
+.ed-name svg { width: 0.9rem; height: 0.9rem; fill: var(--muted); }
+.ed-x {
+  position: absolute; top: 0.5rem; right: 0.5rem; display: grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 7px;
+  background: var(--surface-hi); color: var(--ink-2); border: 1px solid var(--border); box-shadow: 0 1px 4px var(--shadow);
+}
+.ed-x:hover { color: var(--crit); border-color: var(--crit); }
+.ed-x svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.ed-layer { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+.ed-div { position: absolute; pointer-events: auto; touch-action: none; }
+.ed-div.v { cursor: col-resize; }
+.ed-div.h { cursor: row-resize; }
+.ed-div::after {
+  content: ""; position: absolute; border-radius: 99px; background: var(--muted); opacity: 0.55; transition: opacity 0.15s, background 0.15s;
+}
+.ed-div.v::after { left: 50%; top: 50%; width: 0.3rem; height: 3rem; max-height: 60%; transform: translate(-50%, -50%); }
+.ed-div.h::after { left: 50%; top: 50%; height: 0.3rem; width: 3rem; transform: translate(-50%, -50%); }
+.ed-div:hover::after, .ed-div.on::after { opacity: 1; background: var(--accent); }
+.ed-mark { position: absolute; border-radius: 99px; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+.ed-bar {
+  position: fixed; left: 50%; bottom: 1.2rem; z-index: 25; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 2rem);
+  padding: 0.6rem 0.9rem; border-radius: 12px; font-size: 0.9rem;
+  background: var(--surface-hi); color: var(--ink); border: 1px solid var(--border); box-shadow: 0 8px 30px var(--shadow);
+}
+.ed-title { display: inline-flex; gap: 0.2rem; }
+.ed-bar select {
+  font: inherit; font-size: 0.85rem; color: var(--ink); background: var(--page); border: 1px solid var(--border); border-radius: 6px; padding: 0.3rem 0.5rem;
+}
+.ed-hint { color: var(--muted); font-size: 0.8rem; }
+@media (max-aspect-ratio: 1/1), (max-width: 720px) { .ed-div { display: none; } } /* tiles wrap or stack there: nothing to drag */
+@media (max-width: 720px) { body.editing #stage { padding-bottom: 9rem; } } /* the bar sits over the end of a scrolling page */
+
 /* Open windows: one row per window, a colored letter standing in for the program's icon */
 .wins { container-type: inline-size; }
 .wins .find { margin: -0.3rem 0; width: 6.6rem; transition: width 0.15s, border-color 0.15s, background 0.15s; }

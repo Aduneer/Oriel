@@ -1,0 +1,35 @@
+# Builds, lints and tests every push to main and every pull request, on Windows. Smart App Control
+# can block freshly built test binaries on our own PCs, so this is where the tests reliably run.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: src-tauri
+
+      - name: Test
+        working-directory: src-tauri
+        run: cargo test -- --nocapture
+
+      - name: Lint
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings

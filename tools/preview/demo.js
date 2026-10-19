@@ -7,6 +7,7 @@
 //   pages=Resources:cpu,gpu,memory|network,disk,processes;Media:media,processes (pages split by ;)
 //   page=2 (the page on screen)  rotate=10 (seconds between pages)
 //   media=off (nothing playing)  audio=off (no output device)
+//   windows=none (nothing open)  windows=many (thirty windows)  windows=front (Oriel itself in front)
 (() => {
   "use strict";
   const GB = 1024 ** 3, MB = 1024 ** 2;
@@ -302,12 +303,36 @@
   const audio = () => q.get("audio") === "off" ? undefined
     : { ...mixer, apps: mixer.apps.map(a => ({ ...a, active: a.pid === 8412 && player.playing })) };
 
+  // Open windows, top-most first. Made-up programs and titles; clicking one brings it to the front.
+  const WINDOWS = [
+    { hwnd: 1001, pid: 4120, exe: "Code", title: "layout.rs - orbit-notes - Visual Studio Code" },
+    { hwnd: 1002, pid: 5120, exe: "chrome", title: "Trail conditions, Saturday - Google Chrome" },
+    { hwnd: 1003, pid: 6644, exe: "WindowsTerminal", title: "cargo watch -x test" },
+    { hwnd: 1004, pid: 8412, exe: "Spotify", title: "Spotify Premium" },
+    { hwnd: 1005, pid: 9734, exe: "Discord", title: "#general | Lantern Club - Discord", minimized: true },
+    { hwnd: 1006, pid: 3320, exe: "explorer", title: "Photos" },
+    { hwnd: 1007, pid: 7210, exe: "notepad", title: "shopping list.txt - Notepad" },
+    { hwnd: 1008, pid: 2788, exe: "EXCEL", title: "Budget 2027.xlsx - Excel", minimized: true },
+    { hwnd: 1009, pid: 5530, exe: "ApplicationFrameHost", title: "Calculator" },
+    { hwnd: 1010, pid: 6102, exe: "Fieldnotes", title: "Untitled sketch - Fieldnotes" },
+  ];
+  let frontWin = 1001;
+  const windows = () => {
+    if (q.get("windows") === "none") return [];
+    let list = WINDOWS;
+    if (q.get("windows") === "many") {
+      list = Array.from({ length: 30 }, (_, i) => ({ ...WINDOWS[i % WINDOWS.length], hwnd: 2000 + i, title: `${WINDOWS[i % WINDOWS.length].title} (${i + 1})` }));
+    }
+    const front = q.get("windows") === "front" ? list.find(w => !w.minimized)?.hwnd : frontWin;
+    return list.map(w => ({ minimized: false, ...w, front: w.hwnd === front }));
+  };
+
   // Back-date the history so it ends now, one sample per tick.
   const T0 = Date.now() / 1000;
   const history = Array.from({ length: 300 }, (_, k) => ({ ...step(), t: T0 - (300 - k) }));
   const full = () => {
     const s = step();
-    return { ...s, procs: procs(s), drives: DRIVES, media: media(), audio: audio() };
+    return { ...s, procs: procs(s), drives: DRIVES, media: media(), audio: audio(), windows: windows() };
   };
 
   const listeners = {};
@@ -347,6 +372,22 @@
             const to = args.pid == null ? mixer : mixer.apps.find(a => a.pid === args.pid);
             if (to && args.volume != null) to.volume = Math.round(args.volume);
             if (to && args.muted != null) to.muted = args.muted;
+            return null;
+          }
+          case "focus_window": {
+            const w = WINDOWS.find(w => w.hwnd === args.hwnd);
+            if (!w || w.pid !== args.pid) throw "that window has gone";
+            w.minimized = false;
+            frontWin = w.hwnd;
+            setTimeout(emit, 100);
+            return null;
+          }
+          case "close_window": {
+            const i = WINDOWS.findIndex(w => w.hwnd === args.hwnd && w.pid === args.pid);
+            if (i < 0) throw "that window has gone";
+            WINDOWS.splice(i, 1);
+            if (frontWin === args.hwnd) frontWin = WINDOWS[0]?.hwnd;
+            setTimeout(emit, 100);
             return null;
           }
           case "end_processes": {

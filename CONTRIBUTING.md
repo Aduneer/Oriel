@@ -42,6 +42,7 @@ src-tauri/            the app: Rust, on Tauri 2 and the system WebView2
   src/lhm.rs          optional LibreHardwareMonitor reader on its own thread
   src/media.rs        what's playing, from Windows' media controls, on its own thread
   src/audio.rs        the volume mixer: output and per-app volume via Core Audio, on its own thread
+  src/openwin.rs      the open windows Alt+Tab would list, and focusing or closing one
   src/settings.rs     the settings file
   windows/            extra steps for the installer
 ui/                   the dashboard: plain HTML, CSS and canvas, no build step, no dependencies
@@ -60,7 +61,8 @@ sensors is about 11 MB.
 
 The page can only ask Windows to open a fixed list of things (Task Manager, Resource Monitor
 and `ms-settings:` pages), end processes the user picks, play, pause or skip the current track,
-and set volumes. See `run_action`, `end_processes`, `media_control` and `set_volume` in `main.rs`.
+set volumes, and bring a window to the front or ask it to close. See `run_action`, `end_processes`,
+`media_control`, `set_volume`, `focus_window` and `close_window` in `main.rs`.
 
 ## Writing a widget
 

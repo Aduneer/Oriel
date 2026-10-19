@@ -5,6 +5,7 @@ use crate::ffi::*;
 use crate::gpu::{GpuInfo, GpuMonitor, GpuSample};
 use crate::lhm::{Fan, Lhm};
 use crate::media::{Media, MediaWatch};
+use crate::openwin::{Win, Windows};
 use crate::pdh::Query;
 use crate::procs::{Proc, ProcessSampler};
 use serde::Serialize;
@@ -53,12 +54,14 @@ pub struct Snapshot {
     media: Option<Media>,
     #[serde(skip_serializing_if = "Option::is_none")]
     audio: Option<Audio>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    windows: Option<Vec<Win>>,
 }
 
 impl Snapshot {
-    /// What the graphs need for history: drops the process list, drives, media and the mixer.
+    /// What the graphs need for history: drops the process list, drives, media, the mixer and the window list.
     pub fn slim(&self) -> Snapshot {
-        Snapshot { procs: None, drives: None, media: None, audio: None, ..self.clone() }
+        Snapshot { procs: None, drives: None, media: None, audio: None, windows: None, ..self.clone() }
     }
 }
 
@@ -116,6 +119,7 @@ pub struct Collector {
     lhm: Option<Lhm>,
     media: MediaWatch,
     audio: AudioWatch,
+    windows: Windows,
     threads: usize,
     tick: u64,
     drives: Vec<Drive>,
@@ -142,7 +146,7 @@ impl Collector {
         let mut procs = ProcessSampler::new(threads);
         procs.sample();
         q.collect(); // baseline for rate counters
-        Collector { q, gpu, procs, lhm: lhm_url.map(Lhm::start), media, audio, threads, tick: 0, drives: drives() }
+        Collector { q, gpu, procs, lhm: lhm_url.map(Lhm::start), media, audio, windows: Windows::default(), threads, tick: 0, drives: drives() }
     }
 
     pub fn info(&self) -> Info {
@@ -202,6 +206,7 @@ impl Collector {
             } else {
                 None
             },
+            windows: if live { self.windows.poll() } else { None },
         }
     }
 

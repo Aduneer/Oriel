@@ -66,7 +66,10 @@
     theme: ["dark", "light", "auto"].includes(q.get("theme")) ? q.get("theme") : "dark",
     palette: /^[a-z0-9-]{1,32}$/.test(q.get("palette") || "") ? q.get("palette") : "oriel",
     monitor: "auto", fullscreen: true, interval_ms: 1000, graph_seconds: 300,
-    pages: pages.length ? pages : [{ name: "Dashboard", layout: layout.length ? layout : [["cpu", "gpu", "memory"], ["network", "disk", "processes"]] }],
+    pages: pages.length ? pages : layout.length ? [{ name: "Dashboard", layout }] : [ // the default pages, as in settings.rs
+      { name: "Resources", layout: [["cpu", "gpu", "memory"], ["network", "disk", "processes"]] },
+      { name: "Desk", layout: [["weather", "calendar", "media"], ["gauges", "volume", "windows"]] },
+    ],
     rotate_seconds: Number(q.get("rotate")) || 0,
     limits: { cpu_temp: [90, 97], gpu_temp: [83, 90], mem: [85, 95], drive: [90, 95] },
     burn_in_shift: true, gpu: false, nvml: true, lhm_url: "http://127.0.0.1:8085/data.json",

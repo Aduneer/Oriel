@@ -78,8 +78,10 @@ It can also read the weather and calendar the backend fetched (`weather`, `calen
 for a place (`search_places`); it never gets to choose an address to fetch.
 
 Weather and calendar are the only widgets that go online, and they do it the same careful way,
-which anything new that does should too: opt in (nothing is fetched until the widget is on a page,
-and only while the dashboard is on screen), https only, through `net::get` (Windows' HTTP client,
+which anything new that does should too: opt in (nothing is fetched until the user gives it a
+place or a link, and then only while the widget is on a page and the dashboard is on screen; the
+default pages must stay offline, see `the_default_pages_dont_go_online`), https only, through
+`net::get` (Windows' HTTP client,
 so no extra dependency, and with a size limit and a deadline), with the last good result kept in
 memory and shown as out of date when a fetch fails (`feed::Watch`). Anything the user pastes in
 that works as a secret, like a calendar link, is kept out of logs, errors and the data a tile is

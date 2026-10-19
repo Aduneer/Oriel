@@ -60,6 +60,9 @@ needs your attention.
   button, like Windows' own mixer. Add it in Settings → Layout
 - **Gauges**: dials for CPU and GPU load and temperature and for memory, with your warn and
   critical limits marked on them. Add it in Settings → Layout
+- **Open windows**: the windows the taskbar and Alt+Tab would list. Click one to bring it to the
+  front (it's restored if minimized), or hover and press × to ask it to close. Search it, and
+  see which one is in front. Add it in Settings → Layout
 - **Battery**, uptime and a clock in the header
 
 <picture>
@@ -212,7 +215,7 @@ note under [Install](#install).
 - [x] Pages: several dashboards, each with its own widgets
 - [x] Volume mixer
 - [ ] Calendar (from an ICS link) and weather
-- [ ] Open windows
+- [x] Open windows
 - [x] Drag-and-drop layout editor and gauges
 - [ ] Widgets from a plugin folder
 - [ ] Signed releases, and winget

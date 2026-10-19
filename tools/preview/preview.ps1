@@ -10,13 +10,19 @@ reload the page to see it.
 With -Screenshots it renders the README images and the repo's social preview in docs/images
 instead, using headless Edge (or Chrome).
 
+With -Installer it renders the installer's sidebar and header images (24-bit BMPs, which is what
+NSIS needs) into src-tauri/windows.
+
 .EXAMPLE
 powershell -ExecutionPolicy RemoteSigned -File tools\preview\preview.ps1
 
 .EXAMPLE
 powershell -ExecutionPolicy RemoteSigned -File tools\preview\preview.ps1 -Screenshots
+
+.EXAMPLE
+powershell -ExecutionPolicy RemoteSigned -File tools\preview\preview.ps1 -Installer
 #>
-param([switch]$Screenshots)
+param([switch]$Screenshots, [switch]$Installer)
 
 $ErrorActionPreference = "Stop"
 $root = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
@@ -38,7 +44,7 @@ $html = $html.Replace("<head>", "<head>`n$base").Replace('<script src="core.js">
 $page = Join-Path $out "index.html"
 Write-Page $page $html
 
-if (-not $Screenshots) {
+if (-not $Screenshots -and -not $Installer) {
     Start-Process (Url $page)
     Write-Host "Opened $page"
     Write-Host "Options go after the address: ?palette=nord&theme=light&settings=1"
@@ -79,6 +85,56 @@ function Shot($url, $file, $w, $h, $scale = 1, [switch]$Transparent) {
     Remove-Item $file -ErrorAction SilentlyContinue
     & $browser @a $url | Out-Null # piping makes PowerShell wait for the browser to exit
     if (-not (Test-Path $file)) { throw "No screenshot came out for $url" }
+}
+
+# ---- installer images -----------------------------------------------------------------
+# NSIS wants 24-bit BMPs: 164x314 for the welcome and finish pages, 150x57 for the others
+# (on a white header). Each is drawn at 4x in the browser and scaled down with System.Drawing,
+# which gives smoother text than rendering at 1x.
+if ($Installer) {
+    Add-Type -AssemblyName System.Drawing
+    $windows = Join-Path $root "src-tauri\windows"
+    $logo = Url (Join-Path $root "assets\oriel.svg")
+    $fonts = "'Segoe UI Variable Display','Segoe UI',sans-serif"
+    $S = 4
+    $pages = [ordered]@{
+        "installer-sidebar" = @{ w = 164; h = 314; html =
+            "html,body{margin:0;width:164px;height:314px;overflow:hidden}" +
+            "body{background:radial-gradient(circle at 100% 0,#9085e938,transparent 70%),radial-gradient(circle at 0 100%,#3987e52e,transparent 65%),linear-gradient(#1a1a21,#0c0c10);" +
+            "color:#f0efec;font-family:$fonts;text-align:center}" +
+            "img{display:block;width:68px;height:68px;margin:70px auto 18px;border-radius:16px;box-shadow:0 0 0 1px #ffffff1a,0 8px 22px #0008}" +
+            "h1{margin:0 0 10px;font-weight:600;font-size:34px;line-height:1;letter-spacing:-.5px}" +
+            "p{margin:0 auto;width:118px;font-size:11.5px;line-height:1.4;color:#b4b8c2}" +
+            "<img src=`"$logo`"><h1>Oriel</h1><p>A command center for your second screen</p>" }
+        "installer-header" = @{ w = 150; h = 57; html =
+            "html,body{margin:0;width:150px;height:57px;overflow:hidden;background:#fff}" +
+            "body{display:flex;align-items:center;justify-content:flex-end;gap:9px;padding-right:14px;box-sizing:border-box;font-family:$fonts}" +
+            "img{width:34px;height:34px;border-radius:8px}" +
+            "b{font-weight:600;font-size:21px;letter-spacing:-.3px;color:#1f2328}" +
+            "<img src=`"$logo`"><b>Oriel</b>" }
+    }
+    foreach ($name in $pages.Keys) {
+        $pg = $pages[$name]
+        Write-Host "Rendering $name"
+        # The html key holds the CSS up to the first "<" and the markup after it.
+        $i = $pg.html.IndexOf("<")
+        $p = Join-Path $out "$name.html"
+        Write-Page $p ("<!doctype html><meta charset=`"utf-8`"><style>" + $pg.html.Substring(0, $i) + "</style>" + $pg.html.Substring($i))
+        $png = Join-Path $raw "$name.png"
+        # A roomy window, cropped below: headless Edge won't always go as small as 150px wide.
+        Shot (Url $p) $png 800 600 $S
+        $src = [Drawing.Image]::FromFile($png)
+        $bmp = New-Object Drawing.Bitmap($pg.w, $pg.h, [Drawing.Imaging.PixelFormat]::Format24bppRgb)
+        $g = [Drawing.Graphics]::FromImage($bmp)
+        $g.InterpolationMode = [Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+        $g.PixelOffsetMode = [Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+        $g.DrawImage($src, (New-Object Drawing.Rectangle(0, 0, $pg.w, $pg.h)), 0, 0, $pg.w * $S, $pg.h * $S, [Drawing.GraphicsUnit]::Pixel)
+        $g.Dispose(); $src.Dispose()
+        $bmp.Save((Join-Path $windows "$name.bmp"), [Drawing.Imaging.ImageFormat]::Bmp)
+        $bmp.Dispose()
+    }
+    Get-ChildItem $windows -Filter *.bmp | Format-Table Name, @{ n = "KB"; e = { [math]::Round($_.Length / 1KB) } } -AutoSize
+    if (-not $Screenshots) { return }
 }
 
 $W = 1920; $H = 1080

@@ -36,6 +36,11 @@ and Windows versions you tried.
     can find another way out.
   - A plugin that throws, or won't load, becomes an error tile instead of breaking the dashboard.
   - Plugins can't take over a built-in widget's id.
+- With the Open windows widget on the dashboard, it lists the titles of your open windows and
+  can bring one to the front or ask it to close, as its × button does (`focus_window`,
+  `close_window`). It never ends a process, and checks the window is still the one you saw before
+  it acts, since Windows reuses window handles. Window titles stay on your PC. Without the widget
+  it doesn't look.
 - It runs as you, without admin rights, and installs per user.
 - Releases are built by GitHub Actions from the tagged commit. Each release lists the SHA-256 of
   its files in `SHA256SUMS.txt`. They aren't code-signed yet.

@@ -7,6 +7,7 @@ mod ffi;
 mod gpu;
 mod lhm;
 mod media;
+mod openwin;
 mod pdh;
 mod plugins;
 mod procs;
@@ -65,7 +66,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show(app)))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
-        .invoke_handler(tauri::generate_handler![hello, save_settings, set_autostart, toggle_fullscreen, run_action, end_processes, media_control, media_art, set_volume, restart, list_plugins])
+        .invoke_handler(tauri::generate_handler![hello, save_settings, set_autostart, toggle_fullscreen, run_action, end_processes, media_control, media_art, set_volume, focus_window, close_window, restart, list_plugins])
         // Widgets from the plugin folder; answers nothing unless the setting is on.
         .register_uri_scheme_protocol(plugins::SCHEME, |ctx, request| {
             let enabled = ctx.app_handle().state::<SettingsState>().0.lock().unwrap().plugins;
@@ -80,6 +81,7 @@ fn main() {
             let audio = AudioWatch::start();
             audio.set_wanted(settings.shows("volume"));
             app.manage(audio.clone());
+            openwin::set_wanted(settings.shows("windows"));
             let collector = Collector::new(settings.nvml, lhm, media, audio);
             let hub = Arc::new(Hub {
                 info: collector.info(),
@@ -171,6 +173,7 @@ fn save_settings(
     hub.interval_ms.store(settings.interval_ms, Ordering::Relaxed);
     media.set_wanted(settings.shows("media"));
     audio.set_wanted(settings.shows("volume"));
+    openwin::set_wanted(settings.shows("windows"));
     if previous.theme != settings.theme {
         apply_theme(&app, &settings.theme);
     }
@@ -272,6 +275,19 @@ fn set_volume(audio: State<AudioWatch>, pid: Option<u32>, volume: Option<f64>, m
         audio.set(pid, audio::Change::Mute(m));
     }
     Ok(())
+}
+
+/// The Open windows rows: bring a window to the front. `pid` is the one the row showed, so a
+/// handle Windows has since given to another program's window is refused (see `openwin::check`).
+#[tauri::command]
+fn focus_window(hwnd: u64, pid: u32) -> Result<(), String> {
+    openwin::focus(hwnd, pid)
+}
+
+/// Ask a window to close, politely: the program can still ask to save.
+#[tauri::command]
+fn close_window(hwnd: u64, pid: u32) -> Result<(), String> {
+    openwin::close(hwnd, pid)
 }
 
 /// The plugin folder's widgets, for the page to load. Empty unless the setting is on.

@@ -11,6 +11,7 @@ mod ics;
 mod lhm;
 mod media;
 mod net;
+mod openwin;
 mod pdh;
 mod procs;
 mod settings;
@@ -72,7 +73,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show(app)))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
-        .invoke_handler(tauri::generate_handler![hello, save_settings, set_autostart, toggle_fullscreen, run_action, end_processes, media_control, media_art, set_volume, weather, calendar, refresh_feed, search_places, restart])
+        .invoke_handler(tauri::generate_handler![hello, save_settings, set_autostart, toggle_fullscreen, run_action, end_processes, media_control, media_art, set_volume, focus_window, close_window, weather, calendar, refresh_feed, search_places, restart])
         .setup(|app| {
             let settings = Settings::load().clamp();
             let lhm = (!settings.lhm_url.is_empty()).then(|| settings.lhm_url.clone());
@@ -89,6 +90,7 @@ fn main() {
             let calendar = calendar::start();
             calendar.set_config(calendar::config(&settings));
             app.manage(calendar.clone());
+            openwin::set_wanted(settings.shows("windows"));
             let collector = Collector::new(settings.nvml, lhm, media, audio, weather, calendar);
             let hub = Arc::new(Hub {
                 info: collector.info(),
@@ -182,6 +184,7 @@ fn save_settings(
     audio.set_wanted(settings.shows("volume"));
     app.state::<WeatherWatch>().set_config(weather::config(&settings));
     app.state::<CalendarWatch>().set_config(calendar::config(&settings));
+    openwin::set_wanted(settings.shows("windows"));
     if previous.theme != settings.theme {
         apply_theme(&app, &settings.theme);
     }
@@ -305,6 +308,19 @@ fn refresh_feed(weather: State<WeatherWatch>, calendar: State<CalendarWatch>, na
 #[tauri::command]
 async fn search_places(query: String) -> Result<Vec<weather::Place>, String> {
     tauri::async_runtime::spawn_blocking(move || weather::search(&query)).await.map_err(|e| e.to_string())?
+}
+
+/// The Open windows rows: bring a window to the front. `pid` is the one the row showed, so a
+/// handle Windows has since given to another program's window is refused (see `openwin::check`).
+#[tauri::command]
+fn focus_window(hwnd: u64, pid: u32) -> Result<(), String> {
+    openwin::focus(hwnd, pid)
+}
+
+/// Ask a window to close, politely: the program can still ask to save.
+#[tauri::command]
+fn close_window(hwnd: u64, pid: u32) -> Result<(), String> {
+    openwin::close(hwnd, pid)
 }
 
 /// For settings that are only read at startup (sensor sources).

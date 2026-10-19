@@ -604,3 +604,46 @@ kbd { font-family: inherit; font-size: 0.8em; padding: 0.05em 0.4em; border: 1px
 .weather.tall .wstrip small { font-size: 0.8rem; }
 .weather { justify-content: space-between; }
 .weather .wstrip { flex: none; }
+/* Open windows: one row per window, a colored letter standing in for the program's icon */
+.wins { container-type: inline-size; }
+.wins .find { margin: -0.3rem 0; width: 6.6rem; transition: width 0.15s, border-color 0.15s, background 0.15s; }
+.wins .find:focus-within, .wins .find:has(input:not(:placeholder-shown)) { width: 10rem; }
+.wins .sub.bad { color: var(--warn); }
+.wins .wlist {
+  flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin: 0 -0.35rem;
+  scrollbar-width: thin; scrollbar-gutter: stable; scrollbar-color: transparent transparent;
+}
+.wins:hover .wlist { scrollbar-color: var(--baseline) transparent; }
+.wins .none { padding: 1rem 0.35rem; color: var(--muted); font-size: 0.9rem; }
+.wrow {
+  display: grid; grid-template-columns: minmax(0, 1fr) 2rem; align-items: center; padding: 0 0.35rem;
+  border-top: 1px solid var(--grid); border-radius: 4px; position: relative;
+}
+.wrow:hover, .wrow:focus-within { background: color-mix(in srgb, var(--surface-hi) 75%, transparent); }
+.wrow.front { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.wrow.front::before { content: ""; position: absolute; left: 0; top: 0.35rem; bottom: 0.35rem; width: 3px; border-radius: 3px; background: var(--accent); }
+.wmain { display: grid; grid-template-columns: 2rem minmax(0, 1fr); align-items: center; gap: 0.7rem; min-width: 0; padding: 0.45rem 0; text-align: left; }
+.wicon {
+  display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 0.5rem; font-size: 0.95rem; font-weight: 600;
+  background: hsl(var(--h) 60% 50% / 0.2); color: color-mix(in srgb, hsl(var(--h) 80% 60%) 65%, var(--ink));
+}
+.wtext { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.wapp, .wtitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wapp { color: var(--ink); font-size: 0.95rem; }
+.wapp small { margin-left: 0.5em; color: var(--muted); font-size: 0.75rem; }
+.wtitle { color: var(--ink-2); font-size: 0.85rem; }
+.wrow.min .wicon, .wrow.min .wtitle { opacity: 0.6; }
+.wclose {
+  display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; color: var(--muted); opacity: 0;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+}
+.wclose svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.wrow:hover .wclose, .wclose:focus-visible { opacity: 1; }
+.wclose:hover { background: var(--surface-hi); color: var(--crit); }
+.wins mark { color: inherit; background: color-mix(in srgb, var(--accent) 32%, transparent); border-radius: 3px; }
+/* On a touch screen there's no hover to reveal it */
+@media (hover: none) { .wclose { opacity: 0.7; } }
+@container (max-width: 17rem) {
+  .wclose { display: none; }
+  .wrow { grid-template-columns: minmax(0, 1fr); }
+}

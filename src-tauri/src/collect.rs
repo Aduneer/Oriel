@@ -7,6 +7,7 @@ use crate::ffi::*;
 use crate::gpu::{GpuInfo, GpuMonitor, GpuSample};
 use crate::lhm::{Fan, Lhm};
 use crate::media::{Media, MediaWatch};
+use crate::openwin::{Win, Windows};
 use crate::pdh::Query;
 use crate::procs::{Proc, ProcessSampler};
 use crate::weather::WeatherWatch;
@@ -58,6 +59,8 @@ pub struct Snapshot {
     audio: Option<Audio>,
     #[serde(skip_serializing_if = "Option::is_none")]
     feeds: Option<Feeds>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    windows: Option<Vec<Win>>,
 }
 
 /// How the widgets that go online are doing: only those that are on a dashboard page. When a
@@ -71,9 +74,9 @@ pub struct Feeds {
 }
 
 impl Snapshot {
-    /// What the graphs need for history: drops the process list, drives, media, the mixer and feeds.
+    /// What the graphs need for history: drops the process list, drives, media, the mixer, feeds and the window list.
     pub fn slim(&self) -> Snapshot {
-        Snapshot { procs: None, drives: None, media: None, audio: None, feeds: None, ..self.clone() }
+        Snapshot { procs: None, drives: None, media: None, audio: None, feeds: None, windows: None, ..self.clone() }
     }
 }
 
@@ -133,6 +136,7 @@ pub struct Collector {
     audio: AudioWatch,
     weather: WeatherWatch,
     calendar: CalendarWatch,
+    windows: Windows,
     threads: usize,
     tick: u64,
     drives: Vec<Drive>,
@@ -159,7 +163,7 @@ impl Collector {
         let mut procs = ProcessSampler::new(threads);
         procs.sample();
         q.collect(); // baseline for rate counters
-        Collector { q, gpu, procs, lhm: lhm_url.map(Lhm::start), media, audio, weather, calendar, threads, tick: 0, drives: drives() }
+        Collector { q, gpu, procs, lhm: lhm_url.map(Lhm::start), media, audio, weather, calendar, windows: Windows::default(), threads, tick: 0, drives: drives() }
     }
 
     pub fn info(&self) -> Info {
@@ -220,6 +224,7 @@ impl Collector {
                 None
             },
             feeds: if live { self.feeds() } else { None },
+            windows: if live { self.windows.poll() } else { None },
         }
     }
 

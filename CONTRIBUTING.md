@@ -48,6 +48,7 @@ src-tauri/            the app: Rust, on Tauri 2 and the system WebView2
   src/calendar.rs     the calendar widget: fetches the .ics links, works out what's coming up
   src/ics.rs          .ics files: events and their recurrence (RRULE, EXDATE, overrides)
   src/tz.rs           time zones and dates, from Windows' own zone rules
+  src/openwin.rs      the open windows Alt+Tab would list, and focusing or closing one
   src/settings.rs     the settings file
   windows/            extra steps for the installer
 ui/                   the dashboard: plain HTML, CSS and canvas, no build step, no dependencies
@@ -67,7 +68,8 @@ sensors is about 11 MB.
 
 The page can only ask Windows to open a fixed list of things (Task Manager, Resource Monitor
 and `ms-settings:` pages), end processes the user picks, play, pause or skip the current track,
-and set volumes. See `run_action`, `end_processes`, `media_control` and `set_volume` in `main.rs`.
+set volumes, and bring a window to the front or ask it to close. See `run_action`, `end_processes`,
+`media_control`, `set_volume`, `focus_window` and `close_window` in `main.rs`.
 It can also read the weather and calendar the backend fetched (`weather`, `calendar`) and search
 for a place (`search_places`); it never gets to choose an address to fetch.
 

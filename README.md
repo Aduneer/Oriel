@@ -39,7 +39,7 @@ needs your attention.
 - **Private.** No account, no telemetry, and nothing it sends anywhere.
 - **One click into Windows.** Each tile's ↗ button opens the matching part of Windows: Task
   Manager from the process list, Storage settings from the disk tile, and so on.
-- **Yours to change.** Pick the tiles and their order, six themes in dark and light, and
+- **Yours to change.** Drag tiles around and resize them, six themes in dark and light, and
   widgets in plain JavaScript if you want to write your own, even from a [plugin folder](#plugins).
 
 ## What's on it
@@ -58,6 +58,8 @@ needs your attention.
   in Windows' media controls, with play/pause and skip. Add it in Settings → Layout
 - **Volume mixer**: your speakers' or headphones' volume and every app's, each with a mute
   button, like Windows' own mixer. Add it in Settings → Layout
+- **Gauges**: dials for CPU and GPU load and temperature and for memory, with your warn and
+  critical limits marked on them. Add it in Settings → Layout
 - **Open windows**: the windows the taskbar and Alt+Tab would list. Click one to bring it to the
   front (it's restored if minimized), or hover and press × to ask it to close. Search it, and
   see which one is in front. Add it in Settings → Layout
@@ -126,12 +128,22 @@ which aren't drawn until you switch to them, and Oriel opens on the page you las
 screen you don't touch, **Cycle pages** moves on to the next page every so often, and waits
 while you're using the dashboard.
 
+**Edit layout** (Settings → Layout, or <kbd>E</kbd>) changes the page you're looking at, right
+on the dashboard. Drag a tile to move it: within its row, into another row, or onto the line
+between rows for a row of its own. Drag the edge between two tiles to change their widths, or
+the edge between two rows to change their heights. **×** removes a tile and **Add a widget**
+puts one back. With the keyboard, <kbd>Tab</kbd> to a tile, then the arrow keys move it,
+<kbd>Alt</kbd> + arrow keys resize it and <kbd>Delete</kbd> removes it. <kbd>Esc</kbd> or **Done**
+finishes; everything saves as you go, and **Reset sizes** goes back to each widget's own size.
+On a portrait or very narrow window tiles wrap or stack, so there are no edges to drag there.
+
 | Key | |
 |---|---|
 | <kbd>,</kbd> | Settings |
+| <kbd>E</kbd> | Edit the layout of the page on screen |
 | <kbd>1</kbd>–<kbd>9</kbd>, <kbd>PgUp</kbd>/<kbd>PgDn</kbd> | Switch pages, with two or more |
 | <kbd>/</kbd> or <kbd>Ctrl</kbd>+<kbd>F</kbd> | Search the process list, or the settings while they're open |
-| <kbd>Esc</kbd> | Clear the search, close settings |
+| <kbd>Esc</kbd> | Clear the search, close settings, finish editing the layout |
 | <kbd>F11</kbd> | Full screen on/off |
 
 ## Settings
@@ -143,8 +155,9 @@ Changes apply and save as you make them, to `%APPDATA%\Oriel\settings.json`:
 
 - **Appearance**: dark, light or auto, the theme, how much history the graphs show, burn-in
   protection (shifts everything by a pixel or two every few minutes, for OLED screens)
-- **Layout**: which widgets show, in which rows and order; pages to add, name, reorder or
-  delete, each with its own widgets; cycling through pages
+- **Layout**: which widgets show, in which rows and order, and how big each is (also from
+  **Edit layout** on the dashboard); pages to add, name, reorder or delete, each with its own
+  widgets; cycling through pages
 - **Display**: which screen, full screen or windowed
 - **System**: start at sign-in, how often to update, hardware acceleration
 - **Plugins**: load widgets from the plugins folder (off by default, see [Plugins](#plugins))
@@ -223,7 +236,7 @@ note under [Install](#install).
 - [x] Volume mixer
 - [ ] Calendar (from an ICS link) and weather
 - [x] Open windows
-- [ ] Drag-and-drop layout editor and gauges
+- [x] Drag-and-drop layout editor and gauges
 - [x] Widgets from a plugin folder
 - [ ] Signed releases, and winget
 

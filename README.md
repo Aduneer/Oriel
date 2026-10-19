@@ -36,7 +36,8 @@ needs your attention.
   crosses a limit you set.
 - **Light.** About 140 MB of memory and 6% of one CPU core with the dashboard on screen.
   No admin rights, drivers or services.
-- **Private.** No account, no telemetry, and nothing it sends anywhere.
+- **Private.** No account and no telemetry. Only the weather and calendar widgets go online, and
+  only once you add them; [what they send](#weather-and-calendar) is short and spelled out.
 - **One click into Windows.** Each tile's ↗ button opens the matching part of Windows: Task
   Manager from the process list, Storage settings from the disk tile, and so on.
 - **Yours to change.** Pick the tiles and their order, six themes in dark and light, and
@@ -58,6 +59,11 @@ needs your attention.
   in Windows' media controls, with play/pause and skip. Add it in Settings → Layout
 - **Volume mixer**: your speakers' or headphones' volume and every app's, each with a mute
   button, like Windows' own mixer. Add it in Settings → Layout
+- **Weather**: the temperature, conditions, today's high and low, the next hours and the next
+  days for a place you pick, from [Open-Meteo](https://open-meteo.com). Add it in Settings → Layout
+- **Calendar**: what's coming up in the next 7 or 14 days, from the calendar links (.ics) you
+  paste in: Google, Outlook, Apple and any other that publishes one. Recurring events, time
+  zones and all-day events work, and what's on now or next is highlighted. Add it in Settings → Layout
 - **Battery**, uptime and a clock in the header
 
 <picture>
@@ -146,6 +152,7 @@ Changes apply and save as you make them, to `%APPDATA%\Oriel\settings.json`:
 - **System**: start at sign-in, how often to update, hardware acceleration
 - **Alerts**: when temperatures, memory and drive space count as high or critical
 - **Sensors**: NVIDIA sensors on/off, LibreHardwareMonitor address
+- **Weather** and **Calendar**: the place to show, °C or °F, and the calendar links
 
 **Hardware acceleration** is off by default. Drawing a few graphs once a second doesn't need
 the GPU, and without it WebView2 uses about 130 MB less memory for slightly more CPU.
@@ -167,12 +174,42 @@ monitors keep it awake permanently this way. Oriel checks Windows' counters firs
 don't wake it), shows the GPU as **Asleep**, and only asks the NVIDIA driver for temperature
 and power while something is already using the GPU.
 
+## Weather and calendar
+
+These two widgets are the only parts of Oriel that go online, and each only while it's on one of
+your pages. Without them Oriel makes no connections apart from the one to LibreHardwareMonitor on
+your own PC. Each goes to one kind of place, and nothing else is sent:
+
+- **Weather** asks [Open-Meteo](https://open-meteo.com) (free, no account) for the forecast about
+  every 30 minutes, with the place's coordinates rounded to about a kilometre. Pick the place in
+  Settings → Weather: searching for it sends Open-Meteo the words you typed, once, when you press
+  Enter, and nothing is searched as you type.
+- **Calendar** fetches the links you add in Settings → Calendar about every 15 minutes. Find a
+  calendar's link in its sharing settings: *Secret address in iCal format* in Google Calendar,
+  *Publish a calendar* in Outlook, a public calendar's link in Apple Calendar. `webcal://` links
+  work too.
+
+A calendar link is like a password: anyone who has it can read that calendar. Oriel keeps it in
+your settings file and shows it only in Settings, hidden until you press *Show*. It never shows it
+anywhere else, writes it in a log or puts it in an error message.
+
+Both use Windows' own secure connections (https only, with your PC's certificates and proxy
+settings). If a refresh fails, say because you're offline, the tile keeps showing what it had,
+marked *Out of date*, and tries again. The refresh button on a tile fetches again at once.
+
+Calendars can have recurring events (daily, weekly, monthly and yearly, with exceptions and
+moved or cancelled occurrences) in any time zone Windows knows, which covers what Google, Apple
+and Outlook write. Times show in your PC's time zone and clock format. A recurrence rule that uses
+something rarer (like "the 20th week of the year") shows its event once, rather than guessing.
+
 ## FAQ
 
 **Does Oriel send my data anywhere?**
-No. There's no account, telemetry or update check. The only connection it makes is to
-LibreHardwareMonitor's web server, at the address in Settings (your own PC by default), and
-only to read sensors.
+Not unless you add the weather or calendar widget, and then only what's described under
+[Weather and calendar](#weather-and-calendar): the coordinates of the place you picked, and a
+request to each calendar link you pasted. There's no account, telemetry or update check. The
+only other connection it makes is to LibreHardwareMonitor's web server, at the address in
+Settings (your own PC by default), and only to read sensors.
 
 **Does it slow my PC down?**
 With the dashboard on screen it uses about 6% of one CPU core and 140 MB of memory, most of
@@ -198,7 +235,7 @@ note under [Install](#install).
 - [x] Now playing, with media controls
 - [x] Pages: several dashboards, each with its own widgets
 - [x] Volume mixer
-- [ ] Calendar (from an ICS link) and weather
+- [x] Calendar (from an ICS link) and weather
 - [ ] Open windows
 - [ ] Drag-and-drop layout editor and gauges
 - [ ] Widgets from a plugin folder

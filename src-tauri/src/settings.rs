@@ -28,7 +28,44 @@ pub struct Settings {
     pub gpu: bool,
     pub nvml: bool,
     pub lhm_url: String,
+    /// What the weather widget shows the forecast for, chosen with the place search in Settings.
+    /// Its coordinates are what Open-Meteo is asked about. None until someone picks a place.
+    pub weather_place: Option<Place>,
+    /// "auto" (°F in the United States and a few other countries, °C elsewhere), "c" or "f"
+    pub weather_units: String,
+    /// The calendar widget's .ics links. Secrets, in the sense that anyone who has one can read the
+    /// calendar: they're only used for fetching, and never shown anywhere but in Settings.
+    pub calendars: Vec<CalendarFeed>,
+    /// How many days ahead the calendar widget looks
+    pub calendar_days: u32,
 }
+
+/// A place, for the weather.
+#[derive(Serialize, Deserialize, Clone, PartialEq, Default)]
+#[serde(default)]
+pub struct Place {
+    pub name: String,
+    pub lat: f64,
+    pub lon: f64,
+}
+
+/// One calendar for the calendar widget.
+#[derive(Serialize, Deserialize, Clone, PartialEq, Default)]
+#[serde(default)]
+pub struct CalendarFeed {
+    /// What the widget calls it; empty for "Calendar 1" and so on
+    pub name: String,
+    /// A theme color's name (see `CALENDAR_COLORS`), or empty for the widget's pick
+    pub color: String,
+    /// https:// (webcal:// is saved as that); empty if what was typed isn't a link that can be fetched
+    pub url: String,
+}
+
+pub const MAX_CALENDARS: usize = 5;
+pub const MAX_CALENDAR_NAME: usize = 40;
+pub const MAX_PLACE_NAME: usize = 60;
+/// Colors a calendar can have: tokens from themes.css, so they suit every theme.
+pub const CALENDAR_COLORS: &[&str] = &["cpu", "gpu", "mem", "s1", "s2"];
 
 /// One dashboard: the name on its tab, and rows of widget ids, top to bottom.
 #[derive(Serialize, Deserialize, Clone, PartialEq, Default)]
@@ -79,8 +116,17 @@ impl Default for Settings {
             gpu: false,
             nvml: true,
             lhm_url: "http://127.0.0.1:8085/data.json".into(),
+            weather_place: None,
+            weather_units: "auto".into(),
+            calendars: vec![],
+            calendar_days: 7,
         }
     }
+}
+
+/// A name for a list or a tab: no control characters, no edge spaces, at most `max` characters.
+fn tidy(name: &str, max: usize) -> String {
+    name.chars().filter(|c| !c.is_control()).take(max).collect::<String>().trim().to_string()
 }
 
 pub fn path() -> PathBuf {
@@ -149,6 +195,28 @@ impl Settings {
         if !url.is_empty() && !(url.starts_with("http://") && url.len() <= 256 && !url.chars().any(|c| c.is_whitespace() || c.is_control())) {
             self.lhm_url = Settings::default().lhm_url;
         }
+
+        // Weather: a place Open-Meteo could be asked about, to the hundredth of a degree (about a kilometre).
+        self.weather_place = self.weather_place.take().and_then(|p| {
+            let name = tidy(&p.name, MAX_PLACE_NAME);
+            let ok = !name.is_empty() && (-90.0..=90.0).contains(&p.lat) && (-180.0..=180.0).contains(&p.lon);
+            ok.then(|| Place { name, lat: (p.lat * 100.0).round() / 100.0, lon: (p.lon * 100.0).round() / 100.0 })
+        });
+        if !["auto", "c", "f"].contains(&self.weather_units.as_str()) {
+            self.weather_units = "auto".into();
+        }
+
+        // Calendars: a link is fetched, so it has to be https:// (webcal:// is how calendar apps write
+        // that). A row whose link isn't one is kept, empty, so it doesn't vanish while it's being typed.
+        self.calendars.truncate(MAX_CALENDARS);
+        for c in &mut self.calendars {
+            c.name = tidy(&c.name, MAX_CALENDAR_NAME);
+            if !CALENDAR_COLORS.contains(&c.color.as_str()) {
+                c.color.clear();
+            }
+            c.url = crate::net::https_url(&c.url).unwrap_or_default();
+        }
+        self.calendar_days = self.calendar_days.clamp(1, 14);
         self
     }
 }
@@ -189,6 +257,62 @@ mod tests {
         let s = Settings::parse(r#"{"pages": [{"name": "Resources", "layout": [["cpu"]]}, {"name": "Media", "layout": [["media"]]}]}"#).unwrap();
         assert!(s.shows("cpu") && s.shows("media"));
         assert!(!s.shows("processes"));
+    }
+
+    #[test]
+    fn a_file_from_before_weather_and_calendar_still_loads() {
+        let s = Settings::parse(r#"{"theme": "light", "pages": [{"name": "Main", "layout": [["cpu"]]}]}"#).unwrap().clamp();
+        assert!(s.weather_place.is_none() && s.calendars.is_empty());
+        assert_eq!((s.weather_units.as_str(), s.calendar_days), ("auto", 7));
+    }
+
+    #[test]
+    fn weather_place_and_units_are_clamped() {
+        let with = |name: &str, lat: f64, lon: f64| Settings { weather_place: Some(Place { name: name.into(), lat, lon }), ..Settings::default() }.clamp().weather_place;
+        let p = with("  Berlin\n", 52.523456, 13.404954).unwrap();
+        assert_eq!((p.name.as_str(), p.lat, p.lon), ("Berlin", 52.52, 13.4));
+        assert!(with("Nowhere", 91.0, 10.0).is_none());
+        assert!(with("Nowhere", 10.0, -180.5).is_none());
+        assert!(with("Nowhere", f64::NAN, 10.0).is_none());
+        assert!(with("  ", 10.0, 10.0).is_none());
+        assert_eq!(with(&"x".repeat(100), 1.0, 1.0).unwrap().name.chars().count(), MAX_PLACE_NAME);
+        let units = |u: &str| Settings { weather_units: u.into(), ..Settings::default() }.clamp().weather_units;
+        assert_eq!((units("f").as_str(), units("c").as_str(), units("kelvin").as_str()), ("f", "c", "auto"));
+    }
+
+    #[test]
+    fn calendar_links_are_checked_and_tidied() {
+        let feed = |name: &str, color: &str, url: &str| CalendarFeed { name: name.into(), color: color.into(), url: url.into() };
+        let s = Settings {
+            calendars: vec![
+                feed("  Home\t", "s2", "  webcal://calendar.example.test/home.ics "),
+                feed(&"n".repeat(80), "magenta", "https://calendar.example.test/work.ics?key=abc"),
+                feed("Plain http", "", "http://calendar.example.test/x.ics"),
+                feed("Not a link", "cpu", "calendar.example.test/x.ics"),
+                feed("Has a space", "", "https://calendar.example.test/a b.ics"),
+                feed("Sixth", "", "https://calendar.example.test/sixth.ics"),
+                feed("Seventh", "", "https://calendar.example.test/seventh.ics"),
+            ],
+            calendar_days: 90,
+            ..Settings::default()
+        }
+        .clamp();
+        assert_eq!(s.calendars.len(), MAX_CALENDARS);
+        assert_eq!((s.calendars[0].name.as_str(), s.calendars[0].color.as_str()), ("Home", "s2"));
+        assert_eq!(s.calendars[0].url, "https://calendar.example.test/home.ics");
+        assert_eq!(s.calendars[1].name.chars().count(), MAX_CALENDAR_NAME);
+        assert_eq!(s.calendars[1].color, "", "only theme colors");
+        assert_eq!(s.calendars[1].url, "https://calendar.example.test/work.ics?key=abc");
+        // What can't be fetched is emptied, but the row stays.
+        assert_eq!(s.calendars[2].url, "");
+        assert_eq!(s.calendars[3].url, "");
+        assert_eq!(s.calendars[4].url, "");
+        assert_eq!(s.calendar_days, 14);
+        assert_eq!(Settings { calendar_days: 0, ..Settings::default() }.clamp().calendar_days, 1);
+
+        // Saved and read back, they're the same (the link included, for the settings panel).
+        let again = Settings::parse(&serde_json::to_string(&s).unwrap()).unwrap().clamp();
+        assert!(again == s);
     }
 
     #[test]

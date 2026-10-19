@@ -497,3 +497,110 @@ kbd { font-family: inherit; font-size: 0.8em; padding: 0.05em 0.4em; border: 1px
   .status { gap: 1rem; }
   .status #uptime, .clock #date { display: none; }
 }
+
+/* Weather and calendar: the two tiles that go online (weather.js, calendar.js, settings-online.js) */
+.weather, .cal { container-type: inline-size; }
+.wi { flex: none; width: 1.7rem; height: 1.7rem; fill: none; stroke: var(--ink-2); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.wi .sun { stroke: var(--hue); }
+.go.on { opacity: 0.8; } /* the refresh button stays in view while the data is out of date */
+.wfoot { margin-top: auto; color: var(--muted); font-size: 0.8rem; }
+.wfoot:empty { display: none; }
+.wfoot.bad, .cal .wfoot .bad { color: var(--warn); }
+.weather .empty, .cal .empty { padding: 1rem 0; }
+.weather .empty small, .cal .empty small { font-size: 0.85rem; }
+
+.weather .wnow { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 1.8rem; }
+.weather .stat { flex-wrap: nowrap; align-items: center; gap: 1rem; }
+.weather .wbig .wi { width: 4.2rem; height: 4.2rem; stroke-width: 1.5; }
+.weather .wtext { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+.weather .wcond { font-size: 1.5rem; font-weight: 600; line-height: 1.15; }
+.weather .whl { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.weather .wnow .facts { flex: 1 0 100%; gap: 0.2rem 1.2rem; font-size: 0.9rem; color: var(--muted); }
+/* A strip of cells that fit the width: the ones that don't are dropped (the extra rows have no height). */
+.wstrip {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(3.7rem, 1fr)); grid-template-rows: auto; grid-auto-rows: 0;
+  overflow: hidden; padding-top: 0.65rem; border-top: 1px solid var(--grid);
+}
+.wstrip .c { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; min-width: 0; font-variant-numeric: tabular-nums; }
+.wstrip .l { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+.wstrip b { font-weight: 600; }
+.wstrip .lo { color: var(--muted); font-size: 0.9rem; line-height: 1; }
+.wstrip small { min-height: 1em; font-size: 0.75rem; color: var(--ink-2); }
+.weather.short .days, .weather.tiny .hours, .weather.tiny .days { display: none; }
+@container (max-width: 17rem) {
+  .weather .big { font-size: 3rem; }
+  .weather .wbig .wi { width: 3rem; height: 3rem; }
+}
+
+/* Calendar: an agenda, one block per day */
+.cal .agenda {
+  flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 0.95rem;
+  overflow-y: auto; overscroll-behavior: contain; margin: 0 -0.35rem; padding: 0 0.35rem;
+  scrollbar-width: thin; scrollbar-gutter: stable; scrollbar-color: transparent transparent;
+}
+.cal:hover .agenda { scrollbar-color: var(--baseline) transparent; }
+.cal .day h3 { display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.4rem; font-size: 0.9rem; font-weight: 600; color: var(--ink-2); }
+.cal .day h3 small { font-size: 0.8rem; font-weight: 400; color: var(--muted); }
+.cal .ads { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.4rem; }
+.cal .ad {
+  display: inline-flex; align-items: center; gap: 0.4rem; max-width: 100%; padding: 0.15rem 0.65rem; border-radius: 99px;
+  font-size: 0.85rem; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: color-mix(in srgb, var(--c) 18%, transparent); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+}
+.cal .ad i, .cal .lg i { flex: none; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--c); }
+.cal .ev {
+  display: grid; grid-template-columns: 5rem minmax(0, 1fr) auto; align-items: center; gap: 0.7rem;
+  margin-bottom: 0.2rem; padding: 0.35rem 0.6rem; border-left: 3px solid var(--c); border-radius: 0 8px 8px 0;
+}
+.cal .ev .tm { display: flex; flex-direction: column; font-variant-numeric: tabular-nums; line-height: 1.2; white-space: nowrap; }
+.cal .ev .tm b { font-size: 0.95rem; font-weight: 600; }
+.cal .ev .tm small { font-size: 0.75rem; color: var(--muted); }
+.cal .ev .tx { display: flex; flex-direction: column; min-width: 0; }
+.cal .ev .ti, .cal .ev .lo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal .ev .lo { font-size: 0.8rem; color: var(--muted); }
+.cal .ev.now { background: color-mix(in srgb, var(--c) 17%, transparent); }
+.cal .ev.next { background: color-mix(in srgb, var(--surface-hi) 85%, transparent); }
+.cal .rel { font-size: 0.8rem; color: var(--ink-2); white-space: nowrap; }
+.cal .none { padding-left: 0.6rem; font-size: 0.85rem; color: var(--muted); }
+.cal .none.wide { padding: 0; margin: auto; text-align: center; }
+.cal .wfoot { display: flex; flex-wrap: wrap; gap: 0.2rem 1rem; }
+.cal .lg { display: inline-flex; align-items: center; gap: 0.4rem; }
+@container (max-width: 20rem) {
+  .cal .ev { grid-template-columns: 4.2rem minmax(0, 1fr); }
+  .cal .ev .rel, .cal .ev .chip { display: none; }
+}
+
+/* Settings: place search and calendar links */
+.wsearch { display: flex; gap: 0.5rem; }
+.wsearch .find { flex: 1; display: flex; height: 2.1rem; }
+.placeline { display: flex; align-items: center; gap: 0.8rem; }
+.places { display: flex; flex-direction: column; gap: 0.3rem; }
+.places .place { display: flex; flex-direction: column; padding: 0.4rem 0.65rem; text-align: left; border: 1px solid var(--border); border-radius: 8px; }
+.places .place:hover, .places .place:focus-visible { border-color: var(--accent); }
+.places .place small { color: var(--muted); font-size: 0.78rem; }
+.crows { display: flex; flex-direction: column; gap: 0.6rem; }
+.crow { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.65rem; border: 1px solid var(--border); border-radius: 9px; }
+.crow .ctop, .crow .curl { display: flex; align-items: center; gap: 0.6rem; }
+.crow .cname { flex: 1; width: auto; }
+.crow .curl-in { flex: 1; width: auto; }
+.crow .mask { -webkit-text-security: disc; }
+.swatches { display: inline-flex; gap: 0.4rem; }
+.swatches .sw { width: 1rem; height: 1rem; border-radius: 50%; background: var(--c); }
+.swatches .sw.auto { background: none; border: 1.5px dashed var(--muted); }
+.swatches .sw[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 2px; }
+.note.bad { color: var(--warn); }
+.wi .occl { fill: var(--surface); }
+/* With room to spare, the weather gets bigger */
+.weather.tall { gap: 1.2rem; }
+.weather.tall .big { font-size: 5.2rem; }
+.weather.tall .wbig .wi { width: 5.4rem; height: 5.4rem; }
+.weather.tall .wcond { font-size: 1.8rem; }
+.weather.tall .whl, .weather.tall .wnow .facts { font-size: 1.05rem; }
+.weather.tall .wstrip { padding-top: 1.1rem; }
+.weather.tall .wstrip .wi { width: 2.4rem; height: 2.4rem; }
+.weather.tall .wstrip .l { font-size: 0.9rem; }
+.weather.tall .wstrip b { font-size: 1.15rem; }
+.weather.tall .wstrip .c { gap: 0.3rem; }
+.weather.tall .wstrip small { font-size: 0.8rem; }
+.weather { justify-content: space-between; }
+.weather .wstrip { flex: none; }

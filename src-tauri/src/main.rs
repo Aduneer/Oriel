@@ -2,20 +2,28 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod audio;
+mod calendar;
 mod collect;
+mod feed;
 mod ffi;
 mod gpu;
+mod ics;
 mod lhm;
 mod media;
+mod net;
 mod pdh;
 mod procs;
 mod settings;
+mod tz;
+mod weather;
 
 use audio::AudioWatch;
+use calendar::CalendarWatch;
 use collect::{Collector, Info, Snapshot};
 use media::MediaWatch;
 use serde::Serialize;
 use settings::Settings;
+use weather::WeatherWatch;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -64,7 +72,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show(app)))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
-        .invoke_handler(tauri::generate_handler![hello, save_settings, set_autostart, toggle_fullscreen, run_action, end_processes, media_control, media_art, set_volume, restart])
+        .invoke_handler(tauri::generate_handler![hello, save_settings, set_autostart, toggle_fullscreen, run_action, end_processes, media_control, media_art, set_volume, weather, calendar, refresh_feed, search_places, restart])
         .setup(|app| {
             let settings = Settings::load().clamp();
             let lhm = (!settings.lhm_url.is_empty()).then(|| settings.lhm_url.clone());
@@ -74,7 +82,14 @@ fn main() {
             let audio = AudioWatch::start();
             audio.set_wanted(settings.shows("volume"));
             app.manage(audio.clone());
-            let collector = Collector::new(settings.nvml, lhm, media, audio);
+            // These two go online, so they start with nothing to fetch and only get a job while their widget is on a page.
+            let weather = weather::start();
+            weather.set_config(weather::config(&settings));
+            app.manage(weather.clone());
+            let calendar = calendar::start();
+            calendar.set_config(calendar::config(&settings));
+            app.manage(calendar.clone());
+            let collector = Collector::new(settings.nvml, lhm, media, audio, weather, calendar);
             let hub = Arc::new(Hub {
                 info: collector.info(),
                 history: Mutex::new(VecDeque::new()),
@@ -165,6 +180,8 @@ fn save_settings(
     hub.interval_ms.store(settings.interval_ms, Ordering::Relaxed);
     media.set_wanted(settings.shows("media"));
     audio.set_wanted(settings.shows("volume"));
+    app.state::<WeatherWatch>().set_config(weather::config(&settings));
+    app.state::<CalendarWatch>().set_config(calendar::config(&settings));
     if previous.theme != settings.theme {
         apply_theme(&app, &settings.theme);
     }
@@ -257,6 +274,37 @@ fn set_volume(audio: State<AudioWatch>, pid: Option<u32>, volume: Option<f64>, m
         audio.set(pid, audio::Change::Mute(m));
     }
     Ok(())
+}
+
+/// The weather widget's forecast, fetched when its `feeds.weather.rev` in a sample changes.
+#[tauri::command]
+fn weather(weather: State<WeatherWatch>) -> Option<weather::Forecast> {
+    weather.data().map(|d| (*d).clone())
+}
+
+/// The calendar widget's events, fetched when its `feeds.calendar.rev` in a sample changes.
+/// They carry each calendar's name and color, never its link.
+#[tauri::command]
+fn calendar(calendar: State<CalendarWatch>) -> Option<calendar::View> {
+    calendar.data().map(|d| d.view.clone())
+}
+
+/// The refresh buttons on the weather and calendar tiles: fetch again at the next tick.
+#[tauri::command]
+fn refresh_feed(weather: State<WeatherWatch>, calendar: State<CalendarWatch>, name: String) -> Result<(), String> {
+    match name.as_str() {
+        "weather" => weather.refresh(),
+        "calendar" => calendar.refresh(),
+        _ => return Err(format!("unknown feed: {name}")),
+    }
+    Ok(())
+}
+
+/// Settings' place search for the weather. The one request that goes out because of what someone
+/// typed, and only when they search; on a thread of its own, as it waits for the network.
+#[tauri::command]
+async fn search_places(query: String) -> Result<Vec<weather::Place>, String> {
+    tauri::async_runtime::spawn_blocking(move || weather::search(&query)).await.map_err(|e| e.to_string())?
 }
 
 /// For settings that are only read at startup (sensor sources).

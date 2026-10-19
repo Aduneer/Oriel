@@ -7,6 +7,8 @@
 //   pages=Resources:cpu,gpu,memory|network,disk,processes;Media:media,processes (pages split by ;)
 //   page=2 (the page on screen)  rotate=10 (seconds between pages)
 //   media=off (nothing playing)  audio=off (no output device)
+//   weather=none (no place chosen)  weather=error (can't load)  weather=stale (older data, last update failed)  units=f|c
+//   calendar=none (no links)  calendar=empty (no events)  calendar=error  calendar=stale (one calendar offline)  days=14
 (() => {
   "use strict";
   const GB = 1024 ** 3, MB = 1024 ** 2;
@@ -58,6 +60,13 @@
     rotate_seconds: Number(q.get("rotate")) || 0,
     limits: { cpu_temp: [90, 97], gpu_temp: [83, 90], mem: [85, 95], drive: [90, 95] },
     burn_in_shift: true, gpu: false, nvml: true, lhm_url: "http://127.0.0.1:8085/data.json",
+    weather_place: q.get("weather") === "none" ? null : { name: "Riverton", lat: 41.5, lon: -81.7 },
+    weather_units: ["c", "f"].includes(q.get("units")) ? q.get("units") : "auto",
+    calendars: q.get("calendar") === "none" ? [] : [
+      { name: "Home", color: "s2", url: "https://calendar.example.test/private/0a1b2c3d/home.ics" },
+      { name: "Work", color: "s1", url: "https://calendar.example.test/private/4e5f6a7b/work.ics" },
+    ],
+    calendar_days: Number(q.get("days")) === 14 ? 14 : 7,
   };
   const GPU_ID = "0x00000000_0x0000e1c7";
   const info = {
@@ -302,12 +311,108 @@
   const audio = () => q.get("audio") === "off" ? undefined
     : { ...mixer, apps: mixer.apps.map(a => ({ ...a, active: a.pid === 8412 && player.playing })) };
 
+  // Weather and calendar: made-up places and events, relative to now so they always look current.
+  // The weather's "Riverton" and the calendars' links are fictional; nothing here goes online.
+  const shows = id => settings.pages.some(p => p.layout.flat().includes(id));
+  const wMode = q.get("weather"), cMode = q.get("calendar");
+  const online = {
+    weather: { rev: 1, at: Date.now() / 1000 - 7 * 60 },
+    calendar: { rev: 1, at: Date.now() / 1000 - 4 * 60 },
+  };
+  const feedState = (key, mode) => {
+    const s = online[key];
+    if (mode === "error") return { rev: s.rev, at: 0, error: "Can't connect", busy: false };
+    if (mode === "stale") return { rev: s.rev, at: Date.now() / 1000 - 3 * 3600, error: key === "weather" ? "Can't connect" : "Took too long", busy: false };
+    return { rev: s.rev, at: s.at, error: null, busy: false };
+  };
+  const feeds = () => {
+    const f = {};
+    if (shows("weather") && settings.weather_place) f.weather = feedState("weather", wMode);
+    if (shows("calendar") && settings.calendars.some(c => c.url)) f.calendar = feedState("calendar", cMode);
+    return f.weather || f.calendar ? f : undefined;
+  };
+
+  const pad2 = n => String(n).padStart(2, "0");
+  const localIso = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  function forecast() {
+    if (wMode === "error") return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dayCode = [2, 61, 63, 3, 1, 0, 95];
+    const hi = [14, 12, 11, 10, 13, 15, 12], lo = [7, 8, 6, 4, 3, 5, 8];
+    const rainOf = c => ({ 61: 70, 63: 90, 95: 80, 3: 25 }[c] ?? 5);
+    const temp = (d, h) => lo[d] + (hi[d] - lo[d]) * (0.5 - 0.5 * Math.cos(((h - 3) / 24) * 2 * Math.PI));
+    const hours = [];
+    for (let d = 0; d < 7; d++) {
+      for (let h = 0; h < 24; h++) {
+        const day = new Date(today.getFullYear(), today.getMonth(), today.getDate() + d, h);
+        hours.push({ time: `${localIso(day)}T${pad2(h)}:00`, temp: r1(temp(d, h)), code: h < 6 || h > 20 ? Math.min(dayCode[d], 3) : dayCode[d], day: h >= 7 && h < 18, rain: rainOf(dayCode[d]) });
+      }
+    }
+    const now = new Date();
+    const cur = hours[now.getHours()];
+    const iso = `${localIso(now)}T${pad2(now.getHours())}:${pad2(Math.floor(now.getMinutes() / 15) * 15)}`;
+    return {
+      now: { time: iso, temp: cur.temp, feels: r1(cur.temp - 2.2), humidity: 68, wind: 12.4, code: cur.code, day: cur.day },
+      hours: hours.slice(now.getHours(), now.getHours() + 36),
+      days: dayCode.map((code, d) => ({
+        date: localIso(new Date(today.getFullYear(), today.getMonth(), today.getDate() + d)), code, hi: hi[d], lo: lo[d],
+        rain: rainOf(code), sunrise: "07:32", sunset: "17:48",
+      })),
+    };
+  }
+
+  function calendarView() {
+    if (cMode === "error") return null;
+    const now = new Date();
+    const unix = (d, h, m) => Math.floor(new Date(now.getFullYear(), now.getMonth(), now.getDate() + d, h, m).getTime() / 1000);
+    const day = d => Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() + d) / 864e5;
+    const timed = (cal, title, d, h, m, mins, location = "") => ({ cal, title, location, all_day: false, start: unix(d, h, m), end: unix(d, h, m) + mins * 60 });
+    const allDay = (cal, title, d, days = 1) => ({ cal, title, location: "", all_day: true, start: day(d), end: day(d) + days });
+    const events = cMode === "empty" ? [] : [
+      timed(1, "Team standup", 0, 9, 30, 15, "Zoom"),
+      timed(1, "Design review", 0, 10, 0, 60, "Room 4B"),
+      timed(1, "1:1 with Priya", 0, 11, 30, 30),
+      timed(0, "Lunch with Sam", 0, 12, 30, 60, "Café Marlow"),
+      timed(1, "Sprint planning", 0, 14, 0, 90, "Zoom"),
+      timed(0, "Piano practice", 0, 18, 30, 30),
+      allDay(0, "Recycling collection", 0),
+      timed(1, "Quarterly planning", 1, 9, 0, 180, "Main hall"),
+      timed(0, "Dentist", 1, 15, 30, 45, "Maple Street Dental"),
+      allDay(0, "Mara's birthday", 1),
+      allDay(1, "Offsite travel", 2, 3),
+      timed(0, "Climbing", 2, 19, 0, 120, "Boulder Barn"),
+      timed(1, "Demo day", 3, 13, 0, 90),
+      timed(0, "Book club", 5, 19, 30, 120, "Library annex"),
+      timed(1, "Planning retro", 9, 11, 0, 60),
+    ];
+    const days = settings.calendar_days;
+    const keep = events.filter(e => (e.all_day ? e.start : Math.floor(e.start / 86400)) < day(0) + days + 1);
+    return {
+      feeds: settings.calendars.filter(c => c.url).map((_, i) => ({ error: cMode === "stale" && i === 1 ? "Took too long" : null })),
+      events: keep,
+    };
+  }
+
+  const PLACES = [
+    { name: "Riverton", detail: "Ashford County, Northland", lat: 41.5, lon: -81.7 },
+    { name: "Riverton", detail: "Cape Province, Southmark", lat: -33.91, lon: 18.42 },
+    { name: "Rivertown Heights", detail: "Eastvale, Northland", lat: 40.01, lon: -75.13 },
+    { name: "Maplewood", detail: "Elm County, Northland", lat: 44.95, lon: -93.1 },
+    { name: "Port Marlow", detail: "Westshire, Brightland", lat: 50.37, lon: -4.14 },
+  ];
+  // As net.rs's https_url: webcal:// is https://, and anything that isn't https:// can't be fetched.
+  const httpsUrl = raw => {
+    const u = String(raw).trim().replace(/^webcals?:\/\//i, "https://");
+    return /^https:\/\/[^\s/?#@][^\s]*$/i.test(u) && u.length <= 2048 ? u : "";
+  };
+
   // Back-date the history so it ends now, one sample per tick.
   const T0 = Date.now() / 1000;
   const history = Array.from({ length: 300 }, (_, k) => ({ ...step(), t: T0 - (300 - k) }));
   const full = () => {
     const s = step();
-    return { ...s, procs: procs(s), drives: DRIVES, media: media(), audio: audio() };
+    return { ...s, procs: procs(s), drives: DRIVES, media: media(), audio: audio(), feeds: feeds() };
   };
 
   const listeners = {};
@@ -338,7 +443,27 @@
             settings = structuredClone(args.settings);
             // As settings.rs tidies page names.
             settings.pages = settings.pages.slice(0, 9).map((p, i) => ({ ...p, name: p.name.trim().slice(0, 32).trim() || `Page ${i + 1}` }));
+            // As settings.rs tidies the weather place and the calendar links.
+            if (settings.weather_place) {
+              const p = settings.weather_place;
+              settings.weather_place = p.name.trim() && Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180
+                ? { name: p.name.trim().slice(0, 60), lat: Math.round(p.lat * 100) / 100, lon: Math.round(p.lon * 100) / 100 } : null;
+            }
+            settings.calendars = settings.calendars.slice(0, 5).map(c => ({ name: c.name.trim().slice(0, 40), color: c.color, url: httpsUrl(c.url) }));
+            settings.calendar_days = Math.min(14, Math.max(1, settings.calendar_days));
             return settings;
+          }
+          case "weather": return forecast();
+          case "calendar": return calendarView();
+          case "refresh_feed": {
+            const s = online[args.name];
+            if (s) { s.rev++; s.at = Date.now() / 1000; }
+            return null;
+          }
+          case "search_places": {
+            const w = String(args.query).trim().toLowerCase();
+            await new Promise(r => setTimeout(r, 250));
+            return w.length < 2 ? [] : PLACES.filter(p => p.name.toLowerCase().includes(w));
           }
           case "set_autostart": return args.enabled;
           case "media_art": return cover(TRACKS[player.track].hue);

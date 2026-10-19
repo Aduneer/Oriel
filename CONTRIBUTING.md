@@ -42,6 +42,12 @@ src-tauri/            the app: Rust, on Tauri 2 and the system WebView2
   src/lhm.rs          optional LibreHardwareMonitor reader on its own thread
   src/media.rs        what's playing, from Windows' media controls, on its own thread
   src/audio.rs        the volume mixer: output and per-app volume via Core Audio, on its own thread
+  src/net.rs          https GET through Windows' own HTTP client; the only code that goes online
+  src/feed.rs         when a widget that goes online fetches, and what it keeps when a fetch fails
+  src/weather.rs      the weather widget (Open-Meteo forecast) and Settings' place search
+  src/calendar.rs     the calendar widget: fetches the .ics links, works out what's coming up
+  src/ics.rs          .ics files: events and their recurrence (RRULE, EXDATE, overrides)
+  src/tz.rs           time zones and dates, from Windows' own zone rules
   src/settings.rs     the settings file
   windows/            extra steps for the installer
 ui/                   the dashboard: plain HTML, CSS and canvas, no build step, no dependencies
@@ -49,6 +55,7 @@ ui/                   the dashboard: plain HTML, CSS and canvas, no build step, 
   core.js             widget registry, charts, formatting
   widgets/*.js        one file per widget
   settings.js         the settings panel
+  settings-online.js  its weather and calendar sections
   app.js              layout and the update loop
 tools/preview/        runs the dashboard in a browser on made-up data
 ```
@@ -61,6 +68,17 @@ sensors is about 11 MB.
 The page can only ask Windows to open a fixed list of things (Task Manager, Resource Monitor
 and `ms-settings:` pages), end processes the user picks, play, pause or skip the current track,
 and set volumes. See `run_action`, `end_processes`, `media_control` and `set_volume` in `main.rs`.
+It can also read the weather and calendar the backend fetched (`weather`, `calendar`) and search
+for a place (`search_places`); it never gets to choose an address to fetch.
+
+Weather and calendar are the only widgets that go online, and they do it the same careful way,
+which anything new that does should too: opt in (nothing is fetched until the widget is on a page,
+and only while the dashboard is on screen), https only, through `net::get` (Windows' HTTP client,
+so no extra dependency, and with a size limit and a deadline), with the last good result kept in
+memory and shown as out of date when a fetch fails (`feed::Watch`). Anything the user pastes in
+that works as a secret, like a calendar link, is kept out of logs, errors and everything the
+page is sent, and what a widget sends must be listed in the README's "Weather and calendar"
+section and in `SECURITY.md`.
 
 ## Writing a widget
 
@@ -82,7 +100,9 @@ powershell -ExecutionPolicy RemoteSigned -File tools\preview\preview.ps1
 ```
 
 Options go after the page's address, for example `?palette=nord&theme=light`,
-`?procs=tree`, `?layout=cpu,processes` or `?pages=Resources:cpu,gpu|processes;Media:media`.
+`?procs=tree`, `?layout=cpu,processes`, `?pages=Resources:cpu,gpu|processes;Media:media` or
+`?weather=error&calendar=stale` for the weather and calendar when they can't be fetched. The weather
+and calendar there are made up, and nothing goes online.
 The top of `demo.js` lists them all.
 
 Add `-Screenshots` to render the images in the README again (it uses Edge or Chrome,

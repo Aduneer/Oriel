@@ -1,12 +1,15 @@
 //! Builds one snapshot of the system per tick.
 
 use crate::audio::{Audio, AudioWatch};
+use crate::calendar::CalendarWatch;
+use crate::feed::Status;
 use crate::ffi::*;
 use crate::gpu::{GpuInfo, GpuMonitor, GpuSample};
 use crate::lhm::{Fan, Lhm};
 use crate::media::{Media, MediaWatch};
 use crate::pdh::Query;
 use crate::procs::{Proc, ProcessSampler};
+use crate::weather::WeatherWatch;
 use serde::Serialize;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -53,12 +56,24 @@ pub struct Snapshot {
     media: Option<Media>,
     #[serde(skip_serializing_if = "Option::is_none")]
     audio: Option<Audio>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    feeds: Option<Feeds>,
+}
+
+/// How the widgets that go online are doing: only those that are on a dashboard page. When a
+/// widget's `rev` changes, it asks for its data (`weather`, `calendar`).
+#[derive(Serialize, Clone)]
+pub struct Feeds {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    weather: Option<Status>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    calendar: Option<Status>,
 }
 
 impl Snapshot {
-    /// What the graphs need for history: drops the process list, drives, media and the mixer.
+    /// What the graphs need for history: drops the process list, drives, media, the mixer and feeds.
     pub fn slim(&self) -> Snapshot {
-        Snapshot { procs: None, drives: None, media: None, audio: None, ..self.clone() }
+        Snapshot { procs: None, drives: None, media: None, audio: None, feeds: None, ..self.clone() }
     }
 }
 
@@ -116,6 +131,8 @@ pub struct Collector {
     lhm: Option<Lhm>,
     media: MediaWatch,
     audio: AudioWatch,
+    weather: WeatherWatch,
+    calendar: CalendarWatch,
     threads: usize,
     tick: u64,
     drives: Vec<Drive>,
@@ -126,7 +143,7 @@ fn round1(v: f64) -> f64 {
 }
 
 impl Collector {
-    pub fn new(use_nvml: bool, lhm_url: Option<String>, media: MediaWatch, audio: AudioWatch) -> Self {
+    pub fn new(use_nvml: bool, lhm_url: Option<String>, media: MediaWatch, audio: AudioWatch, weather: WeatherWatch, calendar: CalendarWatch) -> Self {
         let mut q = Query::new().expect("PDH unavailable");
         q.add("cpu_util", r"\Processor Information(*)\% Processor Utility");
         q.add("cpu_perf", r"\Processor Information(_Total)\% Processor Performance");
@@ -142,7 +159,7 @@ impl Collector {
         let mut procs = ProcessSampler::new(threads);
         procs.sample();
         q.collect(); // baseline for rate counters
-        Collector { q, gpu, procs, lhm: lhm_url.map(Lhm::start), media, audio, threads, tick: 0, drives: drives() }
+        Collector { q, gpu, procs, lhm: lhm_url.map(Lhm::start), media, audio, weather, calendar, threads, tick: 0, drives: drives() }
     }
 
     pub fn info(&self) -> Info {
@@ -202,7 +219,17 @@ impl Collector {
             } else {
                 None
             },
+            feeds: if live { self.feeds() } else { None },
         }
+    }
+
+    /// Starts a fetch for the weather or the calendar if one is due; they only exist while their
+    /// widget is on a page, and only get here while the dashboard is on screen.
+    fn feeds(&self) -> Option<Feeds> {
+        self.weather.poll();
+        self.calendar.poll();
+        let (weather, calendar) = (self.weather.wanted(), self.calendar.wanted());
+        (weather || calendar).then(|| Feeds { weather: weather.then(|| self.weather.status()), calendar: calendar.then(|| self.calendar.status()) })
     }
 
     fn cpu(&self) -> Cpu {

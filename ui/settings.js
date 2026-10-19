@@ -143,6 +143,8 @@ function render() {
           <button class="btn primary" type="button" data-restart>Restart now</button></div>
       </section>
 
+      ${O.onlineSettings.html(s)}
+
       <section>
         <h3>About</h3>
         <p class="note" data-s="version license">Oriel ${esc(info.version)} · MIT License</p>
@@ -154,6 +156,7 @@ function render() {
   syncTheme();
   syncRestart();
   renderRows();
+  O.onlineSettings.fill();
 }
 
 function syncTheme() {
@@ -502,6 +505,7 @@ function wire() {
     search("");
   });
   $("#scrim").addEventListener("click", close);
+  O.onlineSettings.wire({ save, S, drawer });
 }
 
 // ---- open / close --------------------------------------------------------------------

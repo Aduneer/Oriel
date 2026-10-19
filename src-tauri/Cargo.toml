@@ -19,6 +19,7 @@ nvml-wrapper = "0.13"
 windows = { version = "0.62", features = [
     "Win32_Foundation", "Win32_Graphics_Dxgi", "Win32_Media_Audio", "Win32_Media_Audio_Endpoints", "Win32_System_Com",
     "Win32_System_Com_StructuredStorage", "Win32_System_Variant", "Win32_UI_Shell_PropertiesSystem", "Media_Control", "Storage_Streams",
+    "Globalization", "Web_Http", "Web_Http_Filters", "Web_Http_Headers",
 ] }
 base64 = "0.22"
 

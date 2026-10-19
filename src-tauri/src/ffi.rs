@@ -178,6 +178,15 @@ extern "system" {
     ) -> i32;
 }
 
+// --- COM -----------------------------------------------------------------------
+
+pub const COINIT_MULTITHREADED: u32 = 0;
+
+#[link(name = "ole32", kind = "raw-dylib")]
+extern "system" {
+    pub fn CoInitializeEx(reserved: *mut c_void, coinit: u32) -> i32;
+}
+
 // --- shell ---------------------------------------------------------------------
 
 pub const SW_SHOWNORMAL: i32 = 1;

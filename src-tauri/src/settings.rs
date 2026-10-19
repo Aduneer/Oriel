@@ -89,6 +89,11 @@ impl Settings {
         std::fs::rename(tmp, p)
     }
 
+    /// Whether a widget is on the dashboard.
+    pub fn shows(&self, widget: &str) -> bool {
+        self.layout.iter().flatten().any(|id| id == widget)
+    }
+
     pub fn clamp(mut self) -> Self {
         self.interval_ms = self.interval_ms.clamp(250, 10_000);
         self.graph_seconds = self.graph_seconds.clamp(30, 600);

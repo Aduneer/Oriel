@@ -203,6 +203,51 @@ body {
 .pmenu button:hover, .pmenu button:focus-visible { background: color-mix(in srgb, var(--crit) 16%, transparent); outline: 0; }
 .pmenu button:disabled { opacity: 0.5; cursor: default; }
 
+/* Now playing: the cover beside the track, or above it when the tile is narrow */
+.media { container-type: inline-size; }
+.media .np {
+  flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: minmax(0, 1fr);
+  gap: 1.2rem; align-items: center;
+}
+.media .art {
+  /* As tall as the tile allows, but never more than about half its width */
+  position: relative; height: min(100%, 45cqw, 20rem); aspect-ratio: 1; border-radius: 10px; overflow: hidden;
+  display: grid; place-items: center; color: var(--muted); background: color-mix(in srgb, var(--accent) 14%, var(--surface-hi));
+}
+.media .art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.media svg.note { width: 38%; height: 38%; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.media .info { min-width: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.media .title {
+  font-size: 1.6rem; font-weight: 600; line-height: 1.2; color: var(--ink); overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.media .by { color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.media .time {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.6rem; margin-top: 0.35rem;
+  font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.media .time .meter { height: 0.3rem; }
+.media .ctl { display: flex; align-items: center; gap: 0.35rem; margin: 0.15rem 0 0 -0.45rem; }
+.media .ctl button {
+  display: inline-grid; place-items: center; width: 2.3rem; height: 2.3rem; border-radius: 50%;
+  color: var(--ink-2); transition: background 0.15s, color 0.15s;
+}
+.media .ctl button:hover:not(:disabled) { background: var(--surface-hi); color: var(--ink); }
+.media .ctl button:disabled { opacity: 0.35; cursor: default; }
+.media .ctl .play { width: 2.8rem; height: 2.8rem; background: var(--accent); color: var(--on-accent); }
+.media .ctl .play:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 82%, var(--ink)); color: var(--on-accent); }
+.media .ctl svg { width: 1.05rem; height: 1.05rem; fill: currentColor; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.media .ctl .play svg { width: 1.25rem; height: 1.25rem; }
+.media .idle { margin: auto; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; color: var(--muted); text-align: center; }
+.media .idle svg.note { width: 2.2rem; height: 2.2rem; margin-bottom: 0.3rem; }
+.media .idle small { font-size: 0.8rem; }
+@container (max-width: 24rem) {
+  .media .np { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; justify-items: center; text-align: center; gap: 0.8rem; }
+  .media .art { height: min(100%, 80cqw); }
+  .media .info { width: 100%; align-items: stretch; }
+  .media .ctl { justify-content: center; margin-left: 0; }
+}
+
 .empty { margin: auto; color: var(--muted); text-align: center; max-width: 24rem; line-height: 1.5; }
 .empty button { color: var(--accent); text-decoration: underline; }
 

@@ -16,6 +16,9 @@ and Windows versions you tried.
 - It can end a process you pick in the process list, after you confirm, with your own rights
   (`end_processes`). It checks the process is still the one you saw, since Windows reuses
   process ids.
+- With the Now playing widget on the dashboard, it reads what's playing from Windows' media
+  controls and can play, pause or skip it, like a keyboard's media keys (`media_control`). Without
+  the widget it doesn't look. What's playing never leaves your PC.
 - It runs as you, without admin rights, and installs per user.
 - Releases are built by GitHub Actions from the tagged commit. Each release lists the SHA-256 of
   its files in `SHA256SUMS.txt`. They aren't code-signed yet.

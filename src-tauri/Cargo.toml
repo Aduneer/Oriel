@@ -15,8 +15,9 @@ tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 nvml-wrapper = "0.13"
-# Same major as Tauri's own dependency, so it's only compiled once.
-windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Dxgi"] }
+# Same majors as Tauri's own dependencies, so they're only compiled once.
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Dxgi", "Media_Control", "Storage_Streams"] }
+base64 = "0.22"
 
 [profile.release]
 opt-level = "s"

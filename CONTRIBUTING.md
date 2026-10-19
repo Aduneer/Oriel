@@ -40,6 +40,7 @@ src-tauri/            the app: Rust, on Tauri 2 and the system WebView2
   src/gpu.rs          GPU names via DXGI, NVIDIA extras via NVML on its own thread
   src/procs.rs        every process's CPU time, memory and parent in one NtQuerySystemInformation call
   src/lhm.rs          optional LibreHardwareMonitor reader on its own thread
+  src/media.rs        what's playing, from Windows' media controls, on its own thread
   src/settings.rs     the settings file
   windows/            extra steps for the installer
 ui/                   the dashboard: plain HTML, CSS and canvas, no build step, no dependencies
@@ -57,8 +58,8 @@ nothing. Nearly all of Oriel's memory is the WebView2 page; the Rust backend tha
 sensors is about 11 MB.
 
 The page can only ask Windows to open a fixed list of things (Task Manager, Resource Monitor
-and `ms-settings:` pages), and end processes the user picks. See `run_action` and
-`end_processes` in `main.rs`.
+and `ms-settings:` pages), end processes the user picks, and play, pause or skip the current
+track. See `run_action`, `end_processes` and `media_control` in `main.rs`.
 
 ## Writing a widget
 

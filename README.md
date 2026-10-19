@@ -83,8 +83,9 @@ into a folder of its own (not straight into Downloads) and run `oriel.exe`.
 > [!IMPORTANT]
 > Oriel isn't code-signed yet, so Windows doesn't know who made it:
 > - **SmartScreen** may say *Windows protected your PC*. Click **More info**, then **Run anyway**.
-> - **Smart App Control**, if it's on, blocks apps that aren't signed and has no "run anyway".
->   Until Oriel is signed, you can [build it yourself](CONTRIBUTING.md#building-from-source).
+> - **Smart App Control**, if it's on, may block Oriel: it only lets unsigned apps run when
+>   Microsoft's cloud service judges them safe, and it has no "run anyway". If it blocks Oriel,
+>   you can [build it yourself](CONTRIBUTING.md#building-from-source) until Oriel is signed.
 >   Please don't turn Smart App Control off for Oriel: on most versions of Windows it can only
 >   be turned back on by reinstalling Windows.
 >

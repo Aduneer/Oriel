@@ -56,7 +56,7 @@ jobs:
           Get-ChildItem dist | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } |
             Set-Content dist/SHA256SUMS.txt
 
-      # Smart App Control stops us trying an unsigned build on our own PCs, so try it here on a
+      # Smart App Control can stop release builds on our own PCs, so try the installer here on a
       # clean Windows: install silently, check Oriel starts and keeps running, then uninstall.
       - name: Try the installer
         shell: pwsh

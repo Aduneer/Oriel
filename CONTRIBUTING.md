@@ -98,5 +98,5 @@ The installer is Tauri's NSIS installer. It installs per user, needs no admin ri
 "Delete the application data" is ticked on uninstall, also removes the settings and the sign-in
 entry (`src-tauri/windows/installer-hooks.nsh`).
 
-Releases aren't code-signed yet, so SmartScreen warns about them and Smart App Control blocks
-them. Signing would slot into the workflow's Build step once there's a certificate.
+Releases aren't code-signed yet, so SmartScreen may warn about them and Smart App Control may
+block them. Signing would slot into the workflow's Build step once there's a certificate.

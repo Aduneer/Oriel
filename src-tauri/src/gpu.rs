@@ -244,6 +244,15 @@ impl NvmlPoller {
     }
 }
 
+/// Where the NVIDIA driver puts nvml.dll. Never load it by bare name: Windows looks in Oriel's
+/// own folder first, so a planted nvml.dll next to a portable copy (say, in Downloads) would run.
+fn nvml_path() -> Option<std::path::PathBuf> {
+    let system = crate::ffi::system_dir().map(|d| d.join("nvml.dll"));
+    // Drivers before 2019 kept it here instead.
+    let nvsmi = std::env::var_os("ProgramW6432").map(|p| std::path::Path::new(&p).join(r"NVIDIA Corporation\NVSMI\nvml.dll"));
+    [system, nvsmi].into_iter().flatten().find(|p| p.is_file())
+}
+
 fn nvml_loop(adapters: Vec<(String, String)>, shared: Arc<(Mutex<NvShared>, Condvar)>) {
     let mut nvml: Option<Nvml> = None;
     let mut index: HashMap<String, u32> = HashMap::new(); // luid -> NVML device index
@@ -258,7 +267,8 @@ fn nvml_loop(adapters: Vec<(String, String)>, shared: Arc<(Mutex<NvShared>, Cond
             continue; // nothing awake: don't touch the driver at all
         }
         if nvml.is_none() {
-            let Ok(n) = Nvml::init() else { return };
+            let Some(lib) = nvml_path() else { return };
+            let Ok(n) = Nvml::builder().lib_path(lib.as_os_str()).init() else { return };
             let mut unclaimed: Vec<(u32, String)> = (0..n.device_count().unwrap_or(0))
                 .filter_map(|i| Some((i, n.device_by_index(i).ok()?.name().ok()?.to_lowercase())))
                 .collect();

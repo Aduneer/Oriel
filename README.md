@@ -78,7 +78,7 @@ Oriel runs on Windows 10 and 11.
 3. Start Oriel. If you have a second screen, it opens there, full screen.
 
 Prefer not to install anything? Download **Oriel-*version*-portable.zip** instead, unzip it
-anywhere and run `oriel.exe`.
+into a folder of its own (not straight into Downloads) and run `oriel.exe`.
 
 > [!IMPORTANT]
 > Oriel isn't code-signed yet, so Windows doesn't know who made it:

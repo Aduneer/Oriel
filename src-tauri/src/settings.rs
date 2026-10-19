@@ -97,6 +97,11 @@ impl Settings {
         if !id_ok(&self.palette) {
             self.palette = "oriel".into();
         }
+        // The LHM reader sends this address in a plain HTTP request; no other schemes, spaces or line breaks.
+        let url = &self.lhm_url;
+        if !url.is_empty() && !(url.starts_with("http://") && url.len() <= 256 && !url.chars().any(|c| c.is_whitespace() || c.is_control())) {
+            self.lhm_url = Settings::default().lhm_url;
+        }
         self
     }
 }

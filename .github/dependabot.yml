@@ -1,0 +1,14 @@
+# Monthly pull requests for outdated actions (they're pinned to commits) and Rust crates.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    schedule:
+      interval: monthly
+    groups:
+      crates:
+        patterns: ["*"]

@@ -131,6 +131,7 @@ extern "system" {
     pub fn K32GetPerformanceInfo(info: *mut PERFORMANCE_INFORMATION, cb: u32) -> i32;
     pub fn GetSystemPowerStatus(status: *mut SYSTEM_POWER_STATUS) -> i32;
     pub fn GetTickCount64() -> u64;
+    pub fn GetSystemDirectoryW(buf: *mut u16, len: u32) -> u32;
     pub fn GetLogicalDriveStringsW(len: u32, buf: *mut u16) -> u32;
     pub fn GetDriveTypeW(root: *const u16) -> u32;
     pub fn GetDiskFreeSpaceExW(dir: *const u16, avail: *mut u64, total: *mut u64, free: *mut u64) -> i32;
@@ -169,6 +170,13 @@ extern "system" {
 
 pub fn wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(Some(0)).collect()
+}
+
+/// C:\Windows\System32, asked of Windows rather than built from environment variables.
+pub fn system_dir() -> Option<std::path::PathBuf> {
+    let mut buf = [0u16; 260];
+    let n = unsafe { GetSystemDirectoryW(buf.as_mut_ptr(), buf.len() as u32) } as usize;
+    (n > 0 && n < buf.len()).then(|| String::from_utf16_lossy(&buf[..n]).into())
 }
 
 /// # Safety

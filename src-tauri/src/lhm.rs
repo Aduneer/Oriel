@@ -61,8 +61,10 @@ fn http_get(url: &str) -> Option<String> {
     let mut s = TcpStream::connect_timeout(&addr, timeout).ok()?;
     s.set_read_timeout(Some(timeout)).ok()?;
     write!(s, "GET {path} HTTP/1.0\r\nHost: {host}\r\nAccept: application/json\r\nConnection: close\r\n\r\n").ok()?;
+    // LHM's data.json is a few hundred KB at most. Cap it, so whatever else might be listening on
+    // that port can't make us buffer without end.
     let mut buf = Vec::new();
-    s.read_to_end(&mut buf).ok()?;
+    s.take(8 << 20).read_to_end(&mut buf).ok()?;
     let text = String::from_utf8_lossy(&buf);
     let (head, body) = text.split_once("\r\n\r\n")?;
     (head.split_whitespace().nth(1)? == "200").then(|| body.to_string())

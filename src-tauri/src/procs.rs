@@ -49,7 +49,8 @@ impl ProcessSampler {
                 )
             };
             if status == STATUS_INFO_LENGTH_MISMATCH {
-                self.buf.resize((ret as usize / 8 + 1) * 2, 0);
+                // Room for what it asked plus growth, and always bigger than before so this ends.
+                self.buf.resize((ret as usize / 8 + 1).max(self.buf.len()) * 2, 0);
                 continue;
             }
             if status != 0 {

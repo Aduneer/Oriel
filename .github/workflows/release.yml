@@ -1,9 +1,13 @@
-# Builds the installer and a portable zip on GitHub's Windows machines and drafts a release.
+# Builds the installer and a portable zip on GitHub's Windows machines, tries them out, and
+# drafts a release.
 #
 # To release: set `version` in src-tauri/Cargo.toml, then push a tag with that version:
 #   git tag v0.2.0
 #   git push origin v0.2.0
 # Check the draft on the Releases page, add notes, and publish it.
+#
+# Third-party actions are pinned to a commit (with the version in a comment), so a moved tag
+# can't change what runs with write access to the repo. Dependabot keeps the pins current.
 name: Release
 
 on:
@@ -11,15 +15,19 @@ on:
     tags: ["v*"]
 
 permissions:
-  contents: write # to create the draft release
+  contents: read
 
 jobs:
   windows:
     runs-on: windows-latest
+    permissions:
+      contents: write # to create the draft release
     env:
       TAG: ${{ github.ref_name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Check the tag matches the version
         shell: pwsh
@@ -27,16 +35,16 @@ jobs:
           $version = (Select-String -Path src-tauri/Cargo.toml -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches.Groups[1].Value
           if ("v$version" -ne $env:TAG) { throw "Tag $env:TAG doesn't match version $version in src-tauri/Cargo.toml" }
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           workspaces: src-tauri
 
       # Release build plus the NSIS installer. Code signing would go here once there's a certificate.
       - name: Build
         working-directory: src-tauri
-        run: npx --yes @tauri-apps/cli@2 build
+        run: npx --yes @tauri-apps/cli@2.12.3 build
 
       - name: Package
         shell: pwsh
@@ -48,7 +56,29 @@ jobs:
           Get-ChildItem dist | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } |
             Set-Content dist/SHA256SUMS.txt
 
-      - uses: softprops/action-gh-release@v2
+      # Smart App Control stops us trying an unsigned build on our own PCs, so try it here on a
+      # clean Windows: install silently, check Oriel starts and keeps running, then uninstall.
+      - name: Try the installer
+        shell: pwsh
+        run: |
+          Start-Process (Get-ChildItem dist/*-setup.exe).FullName -ArgumentList "/S" -Wait
+          $entry = Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall |
+            Get-ItemProperty | Where-Object DisplayName -eq "Oriel"
+          if (-not $entry) { throw "Oriel isn't listed in Installed apps" }
+          $uninstaller = [regex]::Match($entry.UninstallString, '^"?([^"]+\.exe)').Groups[1].Value
+          $exe = Join-Path (Split-Path $uninstaller) "oriel.exe"
+          if (-not (Test-Path $exe)) { throw "No oriel.exe at $exe" }
+          $app = Start-Process $exe -PassThru
+          Start-Sleep -Seconds 15
+          if ($app.HasExited) { throw "Oriel quit straight after starting (exit code $($app.ExitCode))" }
+          Stop-Process -Id $app.Id
+          Start-Process $uninstaller -ArgumentList "/S" -Wait
+          for ($i = 0; $i -lt 30 -and (Test-Path $exe); $i++) { Start-Sleep -Seconds 1 }
+          if (Test-Path $exe) { throw "The uninstaller left $exe behind" }
+          Write-Host "Installed to $(Split-Path $exe), ran for 15 s, uninstalled."
+
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           draft: true
+          fail_on_unmatched_files: true
           files: dist/*

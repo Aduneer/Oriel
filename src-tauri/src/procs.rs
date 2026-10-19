@@ -130,6 +130,72 @@ fn strip_exe(mut name: String) -> String {
     name
 }
 
+/// What came of ending the processes the page asked about.
+#[derive(Serialize, Default, Debug)]
+pub struct Ended {
+    ended: u32,
+    /// Windows said no: the process runs as admin, as another user, or as part of Windows.
+    denied: u32,
+    /// Already exited, or its id has since gone to a process the page never showed.
+    gone: u32,
+    /// One of them was Oriel itself, which it leaves alone.
+    own: bool,
+}
+
+enum Outcome {
+    Ended,
+    Denied,
+    Gone,
+}
+
+/// Ends processes the way Task Manager's "End task" does, with the user's own rights.
+///
+/// `seen` is the time (Unix seconds) of the sample the page was showing. Windows reuses process
+/// ids, so a process that started after that sample can't be the one the user picked, even with
+/// the same id; it's left alone. Samples are timed before the process list is read, so this
+/// errs towards leaving things running.
+pub fn end(pids: &[u32], seen: f64) -> Ended {
+    // FILETIME counts from 1601, Unix time from 1970.
+    let seen = ((seen + 11_644_473_600.0) * 1e7) as i64;
+    let mut out = Ended::default();
+    for &pid in pids {
+        if pid == std::process::id() {
+            out.own = true;
+            continue;
+        }
+        match end_one(pid, seen) {
+            Outcome::Ended => out.ended += 1,
+            Outcome::Denied => out.denied += 1,
+            Outcome::Gone => out.gone += 1,
+        }
+    }
+    out
+}
+
+fn end_one(pid: u32, seen: i64) -> Outcome {
+    let denied_or_gone = || match std::io::Error::last_os_error().raw_os_error() {
+        Some(ERROR_ACCESS_DENIED) => Outcome::Denied,
+        _ => Outcome::Gone, // ERROR_INVALID_PARAMETER: no process with that id
+    };
+    let h = unsafe { OpenProcess(PROCESS_TERMINATE | PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+    if h.is_null() {
+        return denied_or_gone();
+    }
+    let [mut created, mut exited, mut kernel, mut user]: [FILETIME; 4] = Default::default();
+    let outcome = if unsafe { GetProcessTimes(h, &mut created, &mut exited, &mut kernel, &mut user) } == 0 {
+        Outcome::Gone
+    } else if exited.ticks() != 0 || created.ticks() > seen {
+        // Exited but still held open by someone, or a newer process under a reused id.
+        Outcome::Gone
+    } else if unsafe { TerminateProcess(h, 1) } != 0 {
+        Outcome::Ended
+    } else {
+        denied_or_gone()
+    };
+    unsafe { CloseHandle(h) };
+    outcome
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -166,5 +232,37 @@ mod tests {
         }
         let roots = procs.iter().filter(|p| p.ppid == 0).count();
         println!("{} processes, {} roots; this test's ancestry: {}", procs.len(), roots, chain.join(" <- "));
+    }
+
+    fn now() -> f64 {
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64()
+    }
+
+    #[test]
+    fn ends_only_the_process_it_was_shown() {
+        // Something harmless that would otherwise run for a minute.
+        let mut child = std::process::Command::new("ping")
+            .args(["-n", "60", "127.0.0.1"])
+            .stdout(std::process::Stdio::null())
+            .spawn()
+            .expect("couldn't start ping");
+        let pid = child.id();
+
+        // A sample from before it started: the id isn't the process the user saw, so hands off.
+        let r = end(&[pid], now() - 60.0);
+        assert_eq!((r.ended, r.gone), (0, 1), "{r:?}");
+        assert!(child.try_wait().unwrap().is_none(), "ended a process the page never showed");
+
+        let r = end(&[pid], now());
+        assert_eq!(r.ended, 1, "{r:?}");
+        assert_eq!(child.wait().unwrap().code(), Some(1));
+
+        // Exited (we still hold it open, so the id isn't reused yet).
+        assert_eq!(end(&[pid], now()).gone, 1);
+        // Windows' own System process refuses.
+        assert_eq!(end(&[4], now()).denied, 1);
+        // And never Oriel itself.
+        let r = end(&[std::process::id()], now());
+        assert!(r.own && r.ended == 0, "{r:?}");
     }
 }

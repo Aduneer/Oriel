@@ -52,7 +52,8 @@ needs your attention.
 - **Network** and **disk**: throughput, how busy the disks are, and free space per drive
 - **Processes**: everything running, with private memory like Task Manager. Grouped by name
   (`chrome ×24`, click to see each one) or as a tree like btop, with branches you can fold
-  away. Search it (<kbd>/</kbd>) and sort by any column
+  away. Search it (<kbd>/</kbd>), sort by any column, and right-click to end a process or a
+  whole group
 - **Battery**, uptime and a clock in the header
 
 <picture>
@@ -105,6 +106,10 @@ Closing the window hides it to the tray; the tray icon shows it again, and its m
 In the process list, click a group to see its processes. The button next to the search
 switches between groups and the tree; in the tree, click a process to fold its branch away and
 see the branch's total.
+
+To end something, right-click it and choose **End process** (or **End all** for a group). Oriel
+has your rights, not admin ones, so Windows won't let it end parts of Windows or apps running as
+administrator; the header says so when that happens.
 
 | Key | |
 |---|---|
@@ -175,7 +180,7 @@ note under [Install](#install).
 - [x] Dashboard, widgets, settings, tray icon, six themes
 - [x] Process list with search, sorting, groups and a tree
 - [x] Installer and portable zip, built by GitHub Actions
-- [ ] End a process from the list
+- [x] End a process from the list
 - [ ] Now playing, with media controls
 - [ ] Calendar (from an ICS link) and weather
 - [ ] Volume mixer and open windows

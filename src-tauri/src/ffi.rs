@@ -148,6 +148,7 @@ extern "system" {
     pub fn OpenProcess(access: u32, inherit: i32, pid: u32) -> HANDLE;
     pub fn GetProcessTimes(process: HANDLE, created: *mut FILETIME, exited: *mut FILETIME, kernel: *mut FILETIME, user: *mut FILETIME) -> i32;
     pub fn TerminateProcess(process: HANDLE, exit_code: u32) -> i32;
+    pub fn QueryFullProcessImageNameW(process: HANDLE, flags: u32, name: *mut u16, len: *mut u32) -> i32;
     pub fn CloseHandle(handle: HANDLE) -> i32;
     pub fn GlobalMemoryStatusEx(buf: *mut MEMORYSTATUSEX) -> i32;
     pub fn K32GetPerformanceInfo(info: *mut PERFORMANCE_INFORMATION, cb: u32) -> i32;

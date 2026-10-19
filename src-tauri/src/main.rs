@@ -1,6 +1,7 @@
 // No console window in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod audio;
 mod collect;
 mod ffi;
 mod gpu;
@@ -10,6 +11,7 @@ mod pdh;
 mod procs;
 mod settings;
 
+use audio::AudioWatch;
 use collect::{Collector, Info, Snapshot};
 use media::MediaWatch;
 use serde::Serialize;
@@ -62,14 +64,17 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show(app)))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
-        .invoke_handler(tauri::generate_handler![hello, save_settings, set_autostart, toggle_fullscreen, run_action, end_processes, media_control, media_art, restart])
+        .invoke_handler(tauri::generate_handler![hello, save_settings, set_autostart, toggle_fullscreen, run_action, end_processes, media_control, media_art, set_volume, restart])
         .setup(|app| {
             let settings = Settings::load().clamp();
             let lhm = (!settings.lhm_url.is_empty()).then(|| settings.lhm_url.clone());
             let media = MediaWatch::start();
             media.set_wanted(settings.shows("media"));
             app.manage(media.clone());
-            let collector = Collector::new(settings.nvml, lhm, media);
+            let audio = AudioWatch::start();
+            audio.set_wanted(settings.shows("volume"));
+            app.manage(audio.clone());
+            let collector = Collector::new(settings.nvml, lhm, media, audio);
             let hub = Arc::new(Hub {
                 info: collector.info(),
                 history: Mutex::new(VecDeque::new()),
@@ -150,6 +155,7 @@ fn save_settings(
     app: AppHandle,
     hub: State<Arc<Hub>>,
     media: State<MediaWatch>,
+    audio: State<AudioWatch>,
     state: State<SettingsState>,
     settings: Settings,
 ) -> Result<Settings, String> {
@@ -158,6 +164,7 @@ fn save_settings(
     settings.save().map_err(|e| e.to_string())?;
     hub.interval_ms.store(settings.interval_ms, Ordering::Relaxed);
     media.set_wanted(settings.shows("media"));
+    audio.set_wanted(settings.shows("volume"));
     if previous.theme != settings.theme {
         apply_theme(&app, &settings.theme);
     }
@@ -234,6 +241,22 @@ fn media_control(media: State<MediaWatch>, action: String) -> Result<(), String>
 #[tauri::command]
 fn media_art(media: State<MediaWatch>) -> Option<String> {
     media.art()
+}
+
+/// The volume mixer's sliders and mute buttons. `pid` is an app's (0 for system sounds), or none
+/// for the output device itself; `volume` is 0–100.
+#[tauri::command]
+fn set_volume(audio: State<AudioWatch>, pid: Option<u32>, volume: Option<f64>, muted: Option<bool>) -> Result<(), String> {
+    if let Some(v) = volume {
+        if !(0.0..=100.0).contains(&v) {
+            return Err(format!("volume out of range: {v}"));
+        }
+        audio.set(pid, audio::Change::Volume((v / 100.0) as f32));
+    }
+    if let Some(m) = muted {
+        audio.set(pid, audio::Change::Mute(m));
+    }
+    Ok(())
 }
 
 /// For settings that are only read at startup (sensor sources).

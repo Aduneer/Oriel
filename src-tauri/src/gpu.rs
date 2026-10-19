@@ -85,7 +85,7 @@ fn list_adapters() -> Vec<Adapter> {
             });
         }
     }
-    out.sort_by(|a, b| b.dedicated.cmp(&a.dedicated)); // discrete first
+    out.sort_by_key(|a| std::cmp::Reverse(a.dedicated)); // discrete first
     out
 }
 

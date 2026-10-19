@@ -164,7 +164,7 @@ impl Collector {
 
     pub fn sample(&mut self) -> Snapshot {
         self.q.collect();
-        if self.tick > 0 && self.tick % DRIVES_EVERY == 0 {
+        if self.tick > 0 && self.tick.is_multiple_of(DRIVES_EVERY) {
             self.drives = drives();
         }
         self.tick += 1;

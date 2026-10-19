@@ -46,8 +46,24 @@ body {
 .icon:hover, .icon:focus-visible { opacity: 1; color: var(--ink); background: var(--surface-hi); }
 .icon svg { width: 1.15rem; height: 1.15rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
-/* Grid: rows and columns come from the layout setting (see app.js). */
-#grid { display: grid; grid-template-rows: var(--rows, 1fr); gap: 0.75rem; min-height: 0; }
+/* Page tabs, with two pages or more: in the middle of the header, moving aside if the sides need the room. */
+.top.paged { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, auto) 1fr; }
+.top.paged .status { justify-self: end; }
+.pages {
+  display: flex; gap: 2px; min-width: 0; overflow: hidden; padding: 2px; border-radius: 9px;
+  background: var(--surface); border: 1px solid var(--border);
+}
+.pages button {
+  flex: 0 1 auto; min-width: 2.5rem; max-width: 12rem; padding: 0.25rem 0.85rem; border-radius: 7px;
+  font-size: 0.9rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color 0.15s, background 0.15s;
+}
+.pages button:hover { color: var(--ink); }
+.pages button[aria-current="page"] { background: var(--surface-hi); color: var(--ink); box-shadow: 0 1px 3px var(--shadow); }
+
+/* Grid: one page on screen at a time; its rows and columns come from the layout setting (see app.js). */
+#grid { display: grid; grid-template-rows: minmax(0, 1fr); min-height: 0; }
+.page { display: grid; grid-template-rows: var(--rows, 1fr); gap: 0.75rem; min-height: 0; }
 .row { display: grid; grid-template-columns: var(--cols, 1fr); gap: 0.75rem; min-height: 0; }
 
 /* Tiles */
@@ -385,9 +401,36 @@ kbd { font-family: inherit; font-size: 0.8em; padding: 0.05em 0.4em; border: 1px
 .wchip button:hover { color: var(--ink); background: var(--grid); }
 .lrow select.add { margin-left: auto; max-width: 9rem; color: var(--muted); }
 
+/* page list, with two pages or more; the page being edited is the one on the dashboard */
+.plist { display: flex; flex-direction: column; gap: 0.35rem; }
+.prow {
+  display: flex; align-items: center; gap: 0.2rem; padding: 0.2rem 0.25rem 0.2rem 0.45rem;
+  border: 1px solid var(--border); border-radius: 9px; cursor: pointer;
+}
+.prow:hover { border-color: var(--baseline); }
+.prow.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.prow .n { flex: none; width: 1.1rem; text-align: center; color: var(--muted); font-size: 0.75rem; }
+.drawer .prow .pname { flex: 1; width: auto; margin-right: 0.2rem; background: transparent; border-color: transparent; }
+.drawer .prow .pname:hover { border-color: var(--border); }
+.drawer .prow .pname:focus { border-color: var(--accent); background: var(--page); outline: 0; }
+.pbtn {
+  flex: none; display: inline-grid; place-items: center; min-width: 1.75rem; height: 1.75rem; border-radius: 6px;
+  color: var(--muted); font-size: 0.8rem; transition: color 0.15s, background 0.15s;
+}
+.pbtn:hover:not(:disabled) { color: var(--ink); background: var(--surface-hi); }
+.pbtn:disabled { opacity: 0.3; cursor: default; }
+.pbtn svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.rows-title { display: block; margin-bottom: 0.15rem; font-weight: 600; color: var(--ink-2); }
+/* A second click to confirm: the button says so in the alert color. */
+.ask, .armed > svg, .armed > .say { display: none; }
+.armed > .ask { display: inline; }
+.pbtn.armed, .pbtn.armed:hover { padding: 0 0.5rem; color: var(--crit); background: color-mix(in srgb, var(--crit) 14%, transparent); }
+.btn.armed { color: var(--crit); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+
 /* Portrait screens: two columns per row, an odd last tile spans the row. */
 @media (max-aspect-ratio: 1/1) {
-  #grid { grid-template-rows: var(--rows-p, 1fr); }
+  .page { grid-template-rows: var(--rows-p, 1fr); }
   .row { grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; }
   .row > .tile:last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
@@ -397,7 +440,9 @@ kbd { font-family: inherit; font-size: 0.8em; padding: 0.05em 0.4em; border: 1px
   html { font-size: 14px; }
   body { height: auto; overflow: auto; }
   #stage { height: auto; }
-  #grid, .row { grid-template-rows: none; grid-template-columns: 1fr; grid-auto-rows: auto; }
+  #grid, .page, .row { grid-template-rows: none; grid-template-columns: 1fr; grid-auto-rows: auto; }
+  .top.paged { display: flex; flex-wrap: wrap; }
+  .pages { order: 1; flex: 1 1 100%; overflow-x: auto; scrollbar-width: none; }
   .row > .tile:last-child:nth-child(odd) { grid-column: auto; }
   .tile { min-height: 17rem; }
   .procs { min-height: 22rem; }

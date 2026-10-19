@@ -16,8 +16,10 @@ pub struct Settings {
     pub interval_ms: u64,
     /// Seconds of history on the graphs
     pub graph_seconds: u32,
-    /// Rows of widget ids, top to bottom
-    pub layout: Vec<Vec<String>>,
+    /// Dashboards to switch between, each with its own widgets. Most people only need the one.
+    pub pages: Vec<Page>,
+    /// Move on to the next page every this many seconds, or 0 to stay on one
+    pub rotate_seconds: u32,
     pub limits: Limits,
     /// Nudge the layout a pixel or two now and then so static UI can't burn into OLED panels
     pub burn_in_shift: bool,
@@ -27,6 +29,19 @@ pub struct Settings {
     pub nvml: bool,
     pub lhm_url: String,
 }
+
+/// One dashboard: the name on its tab, and rows of widget ids, top to bottom.
+#[derive(Serialize, Deserialize, Clone, PartialEq, Default)]
+#[serde(default)]
+pub struct Page {
+    pub name: String,
+    pub layout: Vec<Vec<String>>,
+}
+
+/// One per number key, 1 to 9.
+pub const MAX_PAGES: usize = 9;
+/// In characters, so a name fits on its tab.
+pub const MAX_PAGE_NAME: usize = 32;
 
 /// [warn, critical] thresholds
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
@@ -54,7 +69,11 @@ impl Default for Settings {
             fullscreen: true,
             interval_ms: 1000,
             graph_seconds: 300,
-            layout: vec![row(&["cpu", "gpu", "memory"]), row(&["network", "disk", "processes"])],
+            pages: vec![Page {
+                name: "Dashboard".into(),
+                layout: vec![row(&["cpu", "gpu", "memory"]), row(&["network", "disk", "processes"])],
+            }],
+            rotate_seconds: 0,
             limits: Limits::default(),
             burn_in_shift: true,
             gpu: false,
@@ -71,11 +90,20 @@ pub fn path() -> PathBuf {
 
 impl Settings {
     pub fn load() -> Self {
+        std::fs::read_to_string(path()).ok().and_then(|s| Settings::parse(&s)).unwrap_or_default()
+    }
+
+    /// Read a settings file, including one from before pages.
+    fn parse(text: &str) -> Option<Self> {
         // Notepad and PowerShell can save with a byte-order mark, which serde_json rejects.
-        std::fs::read_to_string(path())
-            .ok()
-            .and_then(|s| serde_json::from_str(s.trim_start_matches('\u{feff}')).ok())
-            .unwrap_or_default()
+        let mut v: serde_json::Value = serde_json::from_str(text.trim_start_matches('\u{feff}')).ok()?;
+        // Before pages there was a single `layout`: it becomes the first page.
+        if let Some(obj) = v.as_object_mut() {
+            if let Some(layout) = obj.remove("layout") {
+                obj.entry("pages").or_insert_with(|| serde_json::json!([{ "name": "Dashboard", "layout": layout }]));
+            }
+        }
+        serde_json::from_value(v).ok()
     }
 
     pub fn save(&self) -> std::io::Result<()> {
@@ -89,14 +117,28 @@ impl Settings {
         std::fs::rename(tmp, p)
     }
 
-    /// Whether a widget is on the dashboard.
+    /// Whether a widget is on any page, on screen or not.
     pub fn shows(&self, widget: &str) -> bool {
-        self.layout.iter().flatten().any(|id| id == widget)
+        self.pages.iter().flat_map(|p| p.layout.iter().flatten()).any(|id| id == widget)
     }
 
     pub fn clamp(mut self) -> Self {
         self.interval_ms = self.interval_ms.clamp(250, 10_000);
         self.graph_seconds = self.graph_seconds.clamp(30, 600);
+        if self.rotate_seconds != 0 {
+            self.rotate_seconds = self.rotate_seconds.clamp(5, 3600);
+        }
+        self.pages.truncate(MAX_PAGES);
+        if self.pages.is_empty() {
+            self.pages = Settings::default().pages;
+        }
+        for (i, page) in self.pages.iter_mut().enumerate() {
+            let name: String = page.name.trim().chars().filter(|c| !c.is_control()).take(MAX_PAGE_NAME).collect();
+            page.name = match name.trim_end() {
+                "" => format!("Page {}", i + 1),
+                name => name.to_string(),
+            };
+        }
         // It ends up in an HTML attribute, so keep it to a plain id.
         let id_ok = |s: &str| !s.is_empty() && s.len() <= 32 && s.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-');
         if !id_ok(&self.palette) {
@@ -108,5 +150,65 @@ impl Settings {
             self.lhm_url = Settings::default().lhm_url;
         }
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn old_layout_becomes_one_page() {
+        // A file from before pages, saved by Notepad with a byte-order mark.
+        let old = "\u{feff}{\"theme\": \"light\", \"layout\": [[\"cpu\", \"media\"], [\"processes\"]]}";
+        let s = Settings::parse(old).expect("the old file didn't load").clamp();
+        assert_eq!(s.theme, "light");
+        assert_eq!(s.pages.len(), 1);
+        assert_eq!(s.pages[0].name, "Dashboard");
+        assert_eq!(s.pages[0].layout, [vec!["cpu", "media"], vec!["processes"]]);
+        assert!(s.shows("media"));
+        assert_eq!(s.rotate_seconds, 0);
+
+        // Saved again, it has pages and no layout, and reads back the same.
+        let saved = serde_json::to_value(&s).unwrap();
+        assert!(saved.get("layout").is_none());
+        assert!(Settings::parse(&saved.to_string()).unwrap() == s);
+    }
+
+    #[test]
+    fn pages_win_over_a_leftover_layout() {
+        let both = r#"{"pages": [{"name": "Media", "layout": [["media"]]}], "layout": [["cpu"]]}"#;
+        let s = Settings::parse(both).unwrap();
+        assert_eq!(s.pages.len(), 1);
+        assert_eq!(s.pages[0].name, "Media");
+        assert!(!s.shows("cpu"));
+    }
+
+    #[test]
+    fn shows_looks_at_every_page() {
+        let s = Settings::parse(r#"{"pages": [{"name": "Resources", "layout": [["cpu"]]}, {"name": "Media", "layout": [["media"]]}]}"#).unwrap();
+        assert!(s.shows("cpu") && s.shows("media"));
+        assert!(!s.shows("processes"));
+    }
+
+    #[test]
+    fn pages_are_clamped() {
+        let mut s = Settings {
+            pages: (0..12).map(|i| Page { name: format!("P{i}"), layout: vec![] }).collect(),
+            ..Settings::default()
+        };
+        s.pages[1].name = "  \t ".into();
+        s.pages[2].name = "x".repeat(40);
+        s.pages[3].name = "  Media\n ".into();
+        s.rotate_seconds = 1;
+        let s = s.clamp();
+        assert_eq!(s.pages.len(), MAX_PAGES);
+        assert_eq!(s.pages[1].name, "Page 2");
+        assert_eq!(s.pages[2].name.chars().count(), MAX_PAGE_NAME);
+        assert_eq!(s.pages[3].name, "Media");
+        assert_eq!(s.rotate_seconds, 5);
+
+        let none = Settings { pages: vec![], ..Settings::default() }.clamp();
+        assert!(none.pages == Settings::default().pages);
     }
 }

@@ -6,13 +6,15 @@ const { $, el, esc } = O;
 const { invoke } = window.__TAURI__.core;
 
 const DEFAULT_LAYOUT = [["cpu", "gpu", "memory"], ["network", "disk", "processes"]];
+const MAX_PAGES = 9, MAX_NAME = 32; // as in settings.rs
 const GRAPH = [[60, "1 minute"], [120, "2 minutes"], [300, "5 minutes"], [600, "10 minutes"]];
 const INTERVAL = [[500, "0.5 seconds"], [1000, "1 second"], [2000, "2 seconds"], [5000, "5 seconds"]];
+const ROTATE = [[0, "Off"], [10, "Every 10 seconds"], [30, "Every 30 seconds"], [60, "Every minute"], [300, "Every 5 minutes"]];
 const LIMITS = [["cpu_temp", "CPU temperature", "°C"], ["gpu_temp", "GPU temperature", "°C"], ["mem", "Memory used", "%"], ["drive", "Drive full", "%"]];
 // Palettes are defined in themes.css; this is the order and the names they're shown with.
 const PALETTES = [["oriel", "Oriel"], ["catppuccin", "Catppuccin"], ["nord", "Nord"], ["gruvbox", "Gruvbox"], ["rose-pine", "Rosé Pine"], ["solarized", "Solarized"]];
 // Changing these means re-reading history at a new resolution, so the dashboard is rebuilt.
-const REBUILD = new Set(["graph_seconds", "interval_ms", "layout"]);
+const REBUILD = new Set(["graph_seconds", "interval_ms", "pages"]);
 // Read once at startup (sensor threads, WebView2 flags).
 const RESTART = new Set(["nvml", "lhm_url", "gpu"]);
 
@@ -26,8 +28,11 @@ function debounce(fn, ms) {
   return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
 }
 
+const layouts = s => JSON.stringify(s.pages.map(p => p.layout));
+
 async function save(patch) {
-  const next = { ...S(), ...patch };
+  const before = S();
+  const next = { ...before, ...patch };
   O.state.settings = next; // show it now; the backend's clamped copy replaces it below
   try {
     O.state.settings = await invoke("save_settings", { settings: next });
@@ -36,7 +41,9 @@ async function save(patch) {
   }
   const keys = Object.keys(patch);
   if (keys.some(k => RESTART.has(k))) { needsRestart = true; syncRestart(); }
-  if (keys.some(k => REBUILD.has(k))) await O.reload();
+  // Renaming a page only changes its tab.
+  const rebuild = keys.some(k => REBUILD.has(k) && (k !== "pages" || layouts(before) !== layouts(S())));
+  if (rebuild) await O.reload();
   else O.applySettings();
 }
 
@@ -47,6 +54,8 @@ function render() {
   const s = S();
   const { monitors, settingsPath, info } = O.state;
   const monitorOpts = [["auto", "Automatic"], ...monitors.map(m => [m.index, `Display ${m.index} · ${m.width}×${m.height}${m.primary ? " (main)" : ""}`])];
+  // A value set by hand in the settings file still shows as itself.
+  const rotateOpts = ROTATE.some(([v]) => v === s.rotate_seconds) ? ROTATE : [...ROTATE, [s.rotate_seconds, `Every ${s.rotate_seconds} seconds`]];
   // Search: each element with data-s is one result; its text plus the data-s words are what's searched.
   // A section's data-sk words (and its title) match the whole section.
   drawer().innerHTML = `
@@ -74,13 +83,19 @@ function render() {
           ${sw("s-burn", "burn_in_shift", s.burn_in_shift)}</div>
       </section>
 
-      <section>
+      <section data-sk="pages tabs dashboards">
         <h3>Layout</h3>
-        <div class="stack" data-s="widgets tiles rows order arrange move add remove hide show reset drag">
-          <p class="note">Drag widgets to reorder them or move them between rows. Widgets in a row share its width.</p>
+        <div class="stack" data-pages data-s="pages tabs dashboards name rename order move delete remove">
+          <p class="note">Each page is a dashboard of its own. Tabs in the header switch between them, and so do <kbd>1</kbd>–<kbd>9</kbd> and <kbd>PgUp</kbd> <kbd>PgDn</kbd>.</p>
+          <div class="plist" id="s-pages"></div></div>
+        <div class="stack" data-s="widgets tiles rows order arrange move add remove hide show reset drag pages tabs">
+          <p class="note"><span class="rows-title" data-rows-title></span>Drag widgets to reorder them or move them between rows. Widgets in a row share its width.</p>
           <div class="rows" id="s-rows"></div>
           <div class="actions"><button class="btn" type="button" data-add-row>Add row</button>
-            <button class="btn link" type="button" data-reset-layout>Reset to default</button></div></div>
+            <button class="btn" type="button" data-add-page>Add page</button>
+            <button class="btn link" type="button" data-reset-layout><span class="say">Reset to default</span><span class="ask">Reset all pages?</span></button></div></div>
+        <div class="field" data-rotate data-s="rotate cycle pages switch automatically slideshow carousel next"><label for="s-rotate">Cycle pages<span class="hint">Moves on to the next page while nobody is using the dashboard</span></label>
+          <select id="s-rotate" data-set="rotate_seconds" data-num>${options(rotateOpts, s.rotate_seconds)}</select></div>
       </section>
 
       <section data-sk="monitor screen">
@@ -132,7 +147,7 @@ function render() {
         <h3>About</h3>
         <p class="note" data-s="version license">Oriel ${esc(info.version)} · MIT License</p>
         <p class="note" data-s="file json location folder appdata">Settings are saved to <code>${esc(settingsPath)}</code></p>
-        <p class="note" data-s="keyboard shortcuts keys hotkeys"><kbd>,</kbd> settings &nbsp;·&nbsp; <kbd>/</kbd> search &nbsp;·&nbsp; <kbd>Esc</kbd> close &nbsp;·&nbsp; <kbd>F11</kbd> full screen</p>
+        <p class="note" data-s="keyboard shortcuts keys hotkeys"><kbd>,</kbd> settings &nbsp;·&nbsp; <kbd>/</kbd> search &nbsp;·&nbsp; <kbd>Esc</kbd> close &nbsp;·&nbsp; <kbd>F11</kbd> full screen &nbsp;·&nbsp; <kbd>1</kbd>–<kbd>9</kbd> pages</p>
       </section>
       <p class="none" data-none hidden></p>
     </div>`;
@@ -161,7 +176,7 @@ function search(query) {
   let found = 0;
   for (const sec of body.querySelectorAll("section")) {
     const whole = !words.length || has(sec.querySelector("h3").textContent, sec.dataset.sk);
-    const items = [...sec.querySelectorAll("[data-s]")];
+    const items = [...sec.querySelectorAll("[data-s]")].filter(it => !it.hidden); // e.g. page controls with one page
     let n = 0;
     for (const it of items) {
       const ok = whole || has(it.textContent, it.dataset.s);
@@ -209,10 +224,52 @@ function syncRestart() {
 }
 
 // ---- layout editor ---------------------------------------------------------------
+// Pages are only listed once there are two; until then the editor looks as it did before pages.
+let editing = 0; // the page being edited, which the dashboard shows too
+let armTimer = 0;
+
+const ICON = {
+  up: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>`,
+  down: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`,
+  x: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>`,
+};
+
 function renderRows() {
+  const list = $("#s-pages");
+  if (!list) return;
+  const pages = S().pages;
+  editing = Math.max(0, Math.min(pages.length - 1, editing));
+  const many = pages.length > 1;
+  drawer().querySelector("[data-pages]").hidden = !many;
+  drawer().querySelector("[data-rotate]").hidden = !many;
+  list.replaceChildren(...(many ? pages.map(pageRow) : []));
+  const add = drawer().querySelector("[data-add-page]");
+  add.disabled = pages.length >= MAX_PAGES;
+  add.title = add.disabled ? `Up to ${MAX_PAGES} pages` : "";
+  disarm();
+  renderWidgets();
+}
+
+function pageRow(p, i, all) {
+  return el(`
+    <div class="prow${i === editing ? " on" : ""}" data-page-row="${i}">
+      <span class="n">${i + 1}</span>
+      <input type="text" class="pname" value="${esc(p.name)}" maxlength="${MAX_NAME}" spellcheck="false" autocomplete="off" aria-label="Name of page ${i + 1}">
+      <button type="button" class="pbtn" data-move="-1" title="Move up" aria-label="Move page ${i + 1} up"${i ? "" : " disabled"}>${ICON.up}</button>
+      <button type="button" class="pbtn" data-move="1" title="Move down" aria-label="Move page ${i + 1} down"${i < all.length - 1 ? "" : " disabled"}>${ICON.down}</button>
+      <button type="button" class="pbtn del" data-del-page title="Delete page" aria-label="Delete page ${i + 1}">${ICON.x}<span class="ask">Delete?</span></button>
+    </div>`);
+}
+
+/** The rows of the page being edited. */
+function renderWidgets() {
   const box = $("#s-rows");
-  if (!box) return;
-  const layout = S().layout;
+  const pages = S().pages;
+  const { layout } = pages[editing];
+  const title = drawer().querySelector("[data-rows-title]");
+  title.hidden = pages.length < 2;
+  title.textContent = `Widgets on ${pages[editing].name}`;
+  // A widget can be on several pages, so only this page's widgets are left out of "Add…".
   const used = new Set(layout.flat());
   const free = [...O.widgets.values()].filter(w => !used.has(w.id));
   box.replaceChildren(...layout.map((ids, r) => {
@@ -235,9 +292,84 @@ function renderRows() {
   if (q?.value) search(q.value); // the new chips need filtering and marking too
 }
 
-function setLayout(layout) {
-  save({ layout }).then(renderRows);
+/** Save new pages, editing page `at` afterwards; the rebuilt dashboard opens on it too. */
+function setPages(pages, at = editing) {
+  editing = Math.max(0, Math.min(pages.length - 1, at));
+  O.pages.remember(editing);
+  const sent = JSON.stringify(pages);
+  // Drawn now, and again only if the backend tidied something, so a name being typed isn't lost.
+  save({ pages }).then(() => JSON.stringify(S().pages) !== sent && renderRows());
   renderRows();
+}
+const layoutOf = () => S().pages[editing].layout;
+const setLayout = layout => setPages(S().pages.map((p, i) => (i === editing ? { ...p, layout } : p)));
+
+/** Edit page i, and show it on the dashboard behind the panel. */
+function pick(i) {
+  if (i === editing) return;
+  editing = i;
+  disarm();
+  O.pages.show(i, true);
+  $("#s-pages").querySelectorAll("[data-page-row]").forEach(r => r.classList.toggle("on", Number(r.dataset.pageRow) === i));
+  renderWidgets();
+}
+
+function addPage() {
+  const pages = S().pages;
+  if (pages.length >= MAX_PAGES) return;
+  const names = new Set(pages.map(p => p.name));
+  let k = pages.length + 1;
+  while (names.has(`Page ${k}`)) k++;
+  // One empty row, so there's somewhere to add widgets.
+  setPages([...pages, { name: `Page ${k}`, layout: [[]] }], pages.length);
+  const input = $(`#s-pages [data-page-row="${pages.length}"] .pname`);
+  input?.focus();
+  input?.select(); // type a name straight away
+}
+
+function movePage(i, d) {
+  const pages = [...S().pages];
+  const j = i + d;
+  if (j < 0 || j >= pages.length) return;
+  [pages[i], pages[j]] = [pages[j], pages[i]];
+  setPages(pages, editing === i ? j : editing === j ? i : editing);
+  // Keep the keyboard on the same button, now one row along.
+  const row = $(`#s-pages [data-page-row="${j}"]`);
+  const btn = row?.querySelector(`[data-move="${d}"]`);
+  (btn?.disabled ? row.querySelector(`[data-move="${-d}"]`) : btn)?.focus();
+}
+
+function deletePage(i, btn) {
+  const pages = S().pages;
+  if (pages.length < 2) return;
+  if (pages[i].layout.some(r => r.length) && !armed(btn)) return arm(btn, `Click again to delete page ${i + 1} and its widgets`);
+  setPages(pages.filter((_, k) => k !== i), editing > i ? editing - 1 : Math.min(editing, pages.length - 2));
+}
+
+function resetLayout(btn) {
+  if (S().pages.length > 1 && !armed(btn)) return arm(btn, "Click again to replace every page with the default one");
+  setPages([{ name: "Dashboard", layout: DEFAULT_LAYOUT.map(r => [...r]) }], 0);
+}
+
+// Deleting a page with widgets, or resetting several pages, asks for a second click within a few seconds.
+const armed = btn => btn.classList.contains("armed");
+function arm(btn, title) {
+  disarm();
+  btn.dataset.was = JSON.stringify([btn.title, btn.getAttribute("aria-label")]);
+  btn.classList.add("armed");
+  btn.title = title;
+  btn.setAttribute("aria-label", title);
+  armTimer = setTimeout(disarm, 4000);
+}
+function disarm() {
+  clearTimeout(armTimer);
+  for (const b of drawer().querySelectorAll(".armed")) {
+    const [title, label] = JSON.parse(b.dataset.was);
+    b.classList.remove("armed");
+    b.title = title;
+    if (label == null) b.removeAttribute("aria-label");
+    else b.setAttribute("aria-label", label);
+  }
 }
 
 let dragging = null;
@@ -273,7 +405,7 @@ function wireRows(box) {
       return e.clientY < b.top || (e.clientY <= b.bottom && e.clientX < b.left + b.width / 2);
     });
     if (at < 0) at = chips.length;
-    const layout = S().layout.map(ids => ids.filter(id => id !== dragging));
+    const layout = layoutOf().map(ids => ids.filter(id => id !== dragging));
     layout[r].splice(at, 0, dragging);
     setLayout(layout);
   });
@@ -306,17 +438,39 @@ function wire() {
     }
     if (t.closest("[data-remove]")) {
       const id = t.closest(".wchip").dataset.id;
-      return setLayout(S().layout.map(ids => ids.filter(x => x !== id)));
+      return setLayout(layoutOf().map(ids => ids.filter(x => x !== id)));
     }
-    if (t.closest("[data-add-row]")) return setLayout([...S().layout, []]);
-    if (t.closest("[data-reset-layout]")) return setLayout(DEFAULT_LAYOUT.map(r => [...r]));
+    const prow = t.closest("[data-page-row]");
+    if (prow) {
+      const i = Number(prow.dataset.pageRow);
+      const move = t.closest("[data-move]");
+      if (move) return movePage(i, Number(move.dataset.move));
+      const del = t.closest("[data-del-page]");
+      if (del) return deletePage(i, del);
+      return pick(i);
+    }
+    if (t.closest("[data-add-page]")) return addPage();
+    if (t.closest("[data-add-row]")) return setLayout([...layoutOf(), []]);
+    const reset = t.closest("[data-reset-layout]");
+    if (reset) return resetLayout(reset);
     if (t.closest("[data-restart]")) invoke("restart");
+  });
+  // Clicking into a page's name picks that page as well.
+  d.addEventListener("focusin", e => {
+    if (e.target.matches(".pname")) pick(Number(e.target.closest("[data-page-row]").dataset.pageRow));
   });
   d.addEventListener("change", async e => {
     const t = e.target;
     if (t.matches("select.add") && t.value) {
       const r = Number(t.closest(".lrow").dataset.row);
-      return setLayout(S().layout.map((ids, i) => (i === r ? [...ids, t.value] : ids)));
+      return setLayout(layoutOf().map((ids, i) => (i === r ? [...ids, t.value] : ids)));
+    }
+    if (t.matches(".pname")) {
+      // Saved when the name is done (Enter or leaving the field), and only the tabs change.
+      const i = Number(t.closest("[data-page-row]").dataset.pageRow);
+      await save({ pages: S().pages.map((p, k) => (k === i ? { ...p, name: t.value } : p)) });
+      if (document.activeElement !== t) t.value = S().pages[i]?.name ?? t.value; // as the backend tidied it
+      return renderWidgets();
     }
     if (t.matches("[data-autostart]")) {
       try {
@@ -337,8 +491,9 @@ function wire() {
     else if (e.target.dataset.text) saveText(e.target);
     else if (e.target === searchInput()) search(e.target.value);
   });
-  // Esc in a non-empty search clears it; the next Esc closes the panel.
+  // Esc in a non-empty search clears it; the next Esc closes the panel. Enter finishes a page name.
   d.addEventListener("keydown", e => {
+    if (e.key === "Enter" && e.target.matches(".pname")) return e.target.blur();
     const q = searchInput();
     if (e.key !== "Escape" || e.target !== q || !q.value) return;
     e.preventDefault();
@@ -352,6 +507,7 @@ function wire() {
 // ---- open / close --------------------------------------------------------------------
 const isOpen = () => drawer().classList.contains("open");
 function open() {
+  editing = O.pages.current();
   render();
   wireRows($("#s-rows"));
   drawer().inert = false;
@@ -362,13 +518,17 @@ function open() {
 }
 function close() {
   if (!isOpen()) return;
+  if (drawer().contains(document.activeElement)) document.activeElement.blur(); // saves a page name being typed
   drawer().classList.remove("open");
   drawer().inert = true;
   $("#scrim").classList.remove("open");
   O.hideTip();
   // Empty rows are kept while editing so there's somewhere to drop; tidy them away now.
-  const layout = S().layout;
-  if (layout.some(r => !r.length)) save({ layout: layout.filter(r => r.length) });
+  const pages = S().pages;
+  if (pages.some(p => p.layout.some(r => !r.length))) {
+    O.pages.remember(editing);
+    save({ pages: pages.map(p => ({ ...p, layout: p.layout.filter(r => r.length) })) });
+  }
 }
 
 O.settingsPanel = {

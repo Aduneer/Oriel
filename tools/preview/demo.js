@@ -116,7 +116,7 @@
   if (heights.length) settings.pages[0].rows = heights;
   const GPU_ID = "0x00000000_0x0000e1c7";
   const info = {
-    host: "DESKTOP-7Q2K4M", os: "Windows 11 24H2", version: "0.1.0",
+    host: "DESKTOP-7Q2K4M", os: "Windows 11 24H2", version: "0.2.0",
     cpu: { name: "AMD Ryzen 7 7800X3D 8-Core Processor", cores: 8, threads: 16, base_mhz: 4200 },
     mem_total: 31.9 * GB,
     gpus: [{ id: GPU_ID, name: "NVIDIA GeForce RTX 4070", vendor: "nvidia", integrated: false, vram_total: 12 * GB, shared_total: 15.9 * GB, sensors: true }],

@@ -114,19 +114,11 @@ rather than fixed colors, so the widget works in every theme, dark and light.
 
 ### Writing a plugin
 
-A plugin is a widget that lives in a folder instead of in Oriel's source, so nobody has to
-rebuild anything. Put `name.js` (and, if you want, `name.css` beside it) in
-`%APPDATA%\Oriel\widgets`, turn on **Settings → Plugins → Load widgets from the plugins folder**
-(the **Open plugins folder** button there creates and opens it) and restart Oriel. The widget
-then shows in Settings → Layout, marked *(plugin)*. [`docs/examples/world-clock.js`](docs/examples/world-clock.js)
-and its `.css` are a complete small one to copy.
-
-> [!WARNING]
-> A plugin runs inside the dashboard with the same rights as the built-in widgets: it can read
-> every sample, and call everything the dashboard can (end processes, change volume, open
-> Windows settings pages). Only use plugins from people you trust, as with browser extensions.
-> The page's content security policy stops a plugin loading anything from the internet (`fetch`,
-> `WebSocket`, remote scripts, images and fonts) but is a safety net, not a sandbox.
+A plugin is a widget that lives in `%APPDATA%\Oriel\widgets` instead of in Oriel's source, so
+nobody has to rebuild anything; the [README](README.md#plugins) says how to turn them on.
+[`docs/examples/world-clock.js`](docs/examples/world-clock.js) and its `.css` are a complete
+small one to copy. A plugin has the same rights as the built-in widgets, so
+[SECURITY.md](SECURITY.md) is worth a read before you share one.
 
 **The API** is the one the built-in widgets use, and `ui/core.js` documents it at the top:
 
@@ -192,12 +184,10 @@ made-up data from `tools/preview/demo.js`; edit anything in `ui/` and reload:
 powershell -ExecutionPolicy RemoteSigned -File tools\preview\preview.ps1
 ```
 
-Options go after the page's address, for example `?palette=nord&theme=light`,
-`?procs=tree`, `?layout=cpu,processes`, `?pages=Resources:cpu,gpu|processes;Media:media`,
-`?weather=error&calendar=stale` for the weather and calendar when they can't be fetched (they're made
-up there, and nothing goes online). `?edit=1` starts in Edit layout, and `?widths=2,1|1,1,1&heights=1,2`
-gives the first page the sizes Edit layout would have saved.
-The top of `demo.js` lists them all.
+Options go after the page's address, for example `?palette=nord&theme=light`, `?procs=tree`,
+`?pages=Resources:cpu,gpu|processes;Media:media`, `?edit=1` (start in Edit layout) or
+`?weather=error` (the weather is made up there too, and nothing goes online). The top of
+`demo.js` lists them all.
 
 Add `-Screenshots` to render the images in the README again (it uses Edge or Chrome,
 headless). The demo data is seeded, so the pictures only change when the dashboard does.
@@ -208,7 +198,8 @@ Releases are built by GitHub Actions (`.github/workflows/release.yml`), not on a
 App Control and local toolchains don't matter:
 
 1. Set `version` in `src-tauri/Cargo.toml` (the installer takes its version from there).
-2. Commit, then tag and push: `git tag v0.2.0` and `git push origin v0.2.0`.
+2. Commit, then make a signed tag and push it: `git tag -s v0.2.0 -m "Oriel 0.2.0"` and
+   `git push origin v0.2.0`.
 3. The workflow builds `Oriel-0.2.0-setup.exe`, `Oriel-0.2.0-portable.zip` and
    `SHA256SUMS.txt`, and drafts a release with them. Add notes and publish it.
 

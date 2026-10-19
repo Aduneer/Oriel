@@ -1,11 +1,19 @@
 # Builds, lints and tests every push to main and every pull request, on Windows. Smart App Control
 # can block freshly built test binaries on our own PCs, so this is where the tests reliably run.
+# Changes to docs, images and the preview tool alone don't touch the Rust side, so they skip it.
 name: CI
 
 on:
   push:
     branches: [main]
+    paths-ignore: ["**.md", "docs/**", "assets/**", "tools/preview/**"]
   pull_request:
+    paths-ignore: ["**.md", "docs/**", "assets/**", "tools/preview/**"]
+
+# A new push to a pull request stops its run that's still going.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read

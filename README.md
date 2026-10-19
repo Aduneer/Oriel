@@ -56,6 +56,8 @@ needs your attention.
   whole group
 - **Now playing**: the track, artist and cover from Spotify, your browser or any app that shows
   in Windows' media controls, with play/pause and skip. Add it in Settings → Layout
+- **Volume mixer**: your speakers' or headphones' volume and every app's, each with a mute
+  button, like Windows' own mixer. Add it in Settings → Layout
 - **Battery**, uptime and a clock in the header
 
 <picture>
@@ -185,7 +187,8 @@ note under [Install](#install).
 - [x] End a process from the list
 - [x] Now playing, with media controls
 - [ ] Calendar (from an ICS link) and weather
-- [ ] Volume mixer and open windows
+- [x] Volume mixer
+- [ ] Open windows
 - [ ] Drag-and-drop layout editor and gauges
 - [ ] Widgets from a plugin folder
 - [ ] Signed releases, and winget

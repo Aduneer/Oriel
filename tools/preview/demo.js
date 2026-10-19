@@ -4,6 +4,7 @@
 // URL options, all optional:
 //   palette=nord  theme=dark|light|auto  settings=1 (open the panel)  time=2026-10-18T14:32
 //   layout=cpu,gpu|processes (rows split by |)  procs=group|tree  click=chrome,Code (rows to open or close)
+//   media=off (nothing playing)  audio=off (no output device)
 (() => {
   "use strict";
   const GB = 1024 ** 3, MB = 1024 ** 2;
@@ -277,12 +278,25 @@
     }
   }
 
+  // Volume mixer: a few apps on Windows' generic speakers. Spotify is active while it plays.
+  const mixer = {
+    device: "Speakers (High Definition Audio Device)", volume: 62, muted: false,
+    apps: [
+      { pid: 8412, exe: "Spotify", title: "", volume: 80, muted: false },
+      { pid: 5120, exe: "chrome", title: "", volume: 100, muted: false },
+      { pid: 9734, exe: "Discord", title: "", volume: 65, muted: true },
+      { pid: 0, exe: "", title: "", volume: 50, muted: false },
+    ],
+  };
+  const audio = () => q.get("audio") === "off" ? undefined
+    : { ...mixer, apps: mixer.apps.map(a => ({ ...a, active: a.pid === 8412 && player.playing })) };
+
   // Back-date the history so it ends now, one sample per tick.
   const T0 = Date.now() / 1000;
   const history = Array.from({ length: 300 }, (_, k) => ({ ...step(), t: T0 - (300 - k) }));
   const full = () => {
     const s = step();
-    return { ...s, procs: procs(s), drives: DRIVES, media: media() };
+    return { ...s, procs: procs(s), drives: DRIVES, media: media(), audio: audio() };
   };
 
   const listeners = {};
@@ -310,6 +324,12 @@
           case "set_autostart": return args.enabled;
           case "media_art": return cover(TRACKS[player.track].hue);
           case "media_control": control(args.action); setTimeout(emit, 150); return null;
+          case "set_volume": {
+            const to = args.pid == null ? mixer : mixer.apps.find(a => a.pid === args.pid);
+            if (to && args.volume != null) to.volume = Math.round(args.volume);
+            if (to && args.muted != null) to.muted = args.muted;
+            return null;
+          }
           case "end_processes": {
             // As on a real PC: Windows' own processes refuse, and Oriel won't end itself.
             const r = { ended: 0, denied: 0, gone: 0, own: false };

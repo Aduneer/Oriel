@@ -245,12 +245,44 @@
   }
   const DRIVES = [{ mount: "C:", used: 611 * GB, total: 930.6 * GB }, { mount: "D:", used: 1710 * GB, total: 1863 * GB }];
 
+  // Now playing: made-up tracks with drawn covers. ?media=off for nothing playing.
+  const TRACKS = [
+    { title: "Glass Orchard", artist: "Northern Static", album: "Low Light Hours", len: 247, hue: 262 },
+    { title: "Paper Satellites", artist: "Mira Vale", album: "Small Weather", len: 213, hue: 196 },
+    { title: "Overpass at 4 AM", artist: "The Quiet Engines", album: "Transit", len: 289, hue: 18 },
+  ];
+  const cover = h => "data:image/svg+xml," + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">` +
+    `<stop offset="0" stop-color="hsl(${h} 70% 62%)"/><stop offset="1" stop-color="hsl(${h + 50} 55% 26%)"/></linearGradient></defs>` +
+    `<rect width="100" height="100" fill="url(#g)"/><circle cx="68" cy="34" r="15" fill="hsl(${h + 25} 90% 86%)" opacity=".85"/>` +
+    `<path d="M0 76Q28 56 54 70T100 62V100H0Z" fill="hsl(${h + 60} 50% 16%)" opacity=".75"/></svg>`);
+  const player = { track: 0, pos: 96, playing: true, at: Date.now() / 1000 };
+  function media() {
+    if (q.get("media") === "off") return undefined;
+    const now = Date.now() / 1000;
+    if (player.playing) player.pos += now - player.at;
+    player.at = now;
+    let tr = TRACKS[player.track];
+    if (player.pos >= tr.len) { player.track = (player.track + 1) % TRACKS.length; player.pos = 0; tr = TRACKS[player.track]; }
+    return { app: "Spotify.exe", title: tr.title, artist: tr.artist, album: tr.album, playing: player.playing,
+      position: player.pos, duration: tr.len, at: now, can_prev: true, can_next: true, can_toggle: true, art: player.track + 1 };
+  }
+  function control(action) {
+    media(); // bring the position up to now first
+    if (action === "toggle") player.playing = !player.playing;
+    else if (action === "previous" && player.pos > 3) player.pos = 0;
+    else {
+      player.track = (player.track + (action === "next" ? 1 : TRACKS.length - 1)) % TRACKS.length;
+      player.pos = 0;
+    }
+  }
+
   // Back-date the history so it ends now, one sample per tick.
   const T0 = Date.now() / 1000;
   const history = Array.from({ length: 300 }, (_, k) => ({ ...step(), t: T0 - (300 - k) }));
   const full = () => {
     const s = step();
-    return { ...s, procs: procs(s), drives: DRIVES };
+    return { ...s, procs: procs(s), drives: DRIVES, media: media() };
   };
 
   const listeners = {};
@@ -276,6 +308,8 @@
             };
           case "save_settings": settings = structuredClone(args.settings); return settings;
           case "set_autostart": return args.enabled;
+          case "media_art": return cover(TRACKS[player.track].hue);
+          case "media_control": control(args.action); setTimeout(emit, 150); return null;
           case "end_processes": {
             // As on a real PC: Windows' own processes refuse, and Oriel won't end itself.
             const r = { ended: 0, denied: 0, gone: 0, own: false };

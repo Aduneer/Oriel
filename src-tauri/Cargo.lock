@@ -2502,6 +2502,7 @@ dependencies = [
 name = "oriel"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "nvml-wrapper",
  "serde",
  "serde_json",

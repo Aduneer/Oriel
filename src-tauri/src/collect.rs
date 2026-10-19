@@ -3,6 +3,7 @@
 use crate::ffi::*;
 use crate::gpu::{GpuInfo, GpuMonitor, GpuSample};
 use crate::lhm::{Fan, Lhm};
+use crate::media::{Media, MediaWatch};
 use crate::pdh::Query;
 use crate::procs::{Proc, ProcessSampler};
 use serde::Serialize;
@@ -47,12 +48,14 @@ pub struct Snapshot {
     procs: Option<Vec<Proc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     drives: Option<Vec<Drive>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    media: Option<Media>,
 }
 
 impl Snapshot {
-    /// What the graphs need for history: drops the process list and drives.
+    /// What the graphs need for history: drops the process list, drives and media.
     pub fn slim(&self) -> Snapshot {
-        Snapshot { procs: None, drives: None, ..self.clone() }
+        Snapshot { procs: None, drives: None, media: None, ..self.clone() }
     }
 }
 
@@ -108,6 +111,7 @@ pub struct Collector {
     gpu: GpuMonitor,
     procs: ProcessSampler,
     lhm: Option<Lhm>,
+    media: MediaWatch,
     threads: usize,
     tick: u64,
     drives: Vec<Drive>,
@@ -118,7 +122,7 @@ fn round1(v: f64) -> f64 {
 }
 
 impl Collector {
-    pub fn new(use_nvml: bool, lhm_url: Option<String>) -> Self {
+    pub fn new(use_nvml: bool, lhm_url: Option<String>, media: MediaWatch) -> Self {
         let mut q = Query::new().expect("PDH unavailable");
         q.add("cpu_util", r"\Processor Information(*)\% Processor Utility");
         q.add("cpu_perf", r"\Processor Information(_Total)\% Processor Performance");
@@ -134,7 +138,7 @@ impl Collector {
         let mut procs = ProcessSampler::new(threads);
         procs.sample();
         q.collect(); // baseline for rate counters
-        Collector { q, gpu, procs, lhm: lhm_url.map(Lhm::start), threads, tick: 0, drives: drives() }
+        Collector { q, gpu, procs, lhm: lhm_url.map(Lhm::start), media, threads, tick: 0, drives: drives() }
     }
 
     pub fn info(&self) -> Info {
@@ -162,7 +166,8 @@ impl Collector {
         }
     }
 
-    pub fn sample(&mut self) -> Snapshot {
+    /// `live`: the dashboard is on screen, so it's worth asking the player what's on.
+    pub fn sample(&mut self, live: bool) -> Snapshot {
         self.q.collect();
         if self.tick > 0 && self.tick.is_multiple_of(DRIVES_EVERY) {
             self.drives = drives();
@@ -179,6 +184,13 @@ impl Collector {
             uptime: unsafe { GetTickCount64() } as f64 / 1000.0,
             procs: Some(self.procs.sample()),
             drives: Some(self.drives.clone()),
+            // The read happens on the media thread, so this is the previous tick's: fine for a song.
+            media: if live {
+                self.media.poll();
+                self.media.latest()
+            } else {
+                None
+            },
         }
     }
 

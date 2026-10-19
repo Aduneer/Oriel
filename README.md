@@ -54,6 +54,8 @@ needs your attention.
   (`chrome ×24`, click to see each one) or as a tree like btop, with branches you can fold
   away. Search it (<kbd>/</kbd>), sort by any column, and right-click to end a process or a
   whole group
+- **Now playing**: the track, artist and cover from Spotify, your browser or any app that shows
+  in Windows' media controls, with play/pause and skip. Add it in Settings → Layout
 - **Battery**, uptime and a clock in the header
 
 <picture>
@@ -181,7 +183,7 @@ note under [Install](#install).
 - [x] Process list with search, sorting, groups and a tree
 - [x] Installer and portable zip, built by GitHub Actions
 - [x] End a process from the list
-- [ ] Now playing, with media controls
+- [x] Now playing, with media controls
 - [ ] Calendar (from an ICS link) and weather
 - [ ] Volume mixer and open windows
 - [ ] Drag-and-drop layout editor and gauges

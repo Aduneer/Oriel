@@ -5,11 +5,13 @@ mod collect;
 mod ffi;
 mod gpu;
 mod lhm;
+mod media;
 mod pdh;
 mod procs;
 mod settings;
 
 use collect::{Collector, Info, Snapshot};
+use media::MediaWatch;
 use serde::Serialize;
 use settings::Settings;
 use std::collections::VecDeque;
@@ -60,11 +62,14 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show(app)))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
-        .invoke_handler(tauri::generate_handler![hello, save_settings, set_autostart, toggle_fullscreen, run_action, end_processes, restart])
+        .invoke_handler(tauri::generate_handler![hello, save_settings, set_autostart, toggle_fullscreen, run_action, end_processes, media_control, media_art, restart])
         .setup(|app| {
             let settings = Settings::load().clamp();
             let lhm = (!settings.lhm_url.is_empty()).then(|| settings.lhm_url.clone());
-            let collector = Collector::new(settings.nvml, lhm);
+            let media = MediaWatch::start();
+            media.set_wanted(settings.shows("media"));
+            app.manage(media.clone());
+            let collector = Collector::new(settings.nvml, lhm, media);
             let hub = Arc::new(Hub {
                 info: collector.info(),
                 history: Mutex::new(VecDeque::new()),
@@ -98,7 +103,9 @@ fn start_sampler(app: AppHandle, hub: Arc<Hub>, mut collector: Collector) {
         .spawn(move || {
             let mut next = Instant::now();
             loop {
-                let snap = collector.sample();
+                // Only feed the page while it's on screen; history keeps filling regardless.
+                let visible = app.get_webview_window("main").is_some_and(|w| w.is_visible().unwrap_or(false));
+                let snap = collector.sample(visible);
                 let interval = hub.interval_ms.load(Ordering::Relaxed);
                 {
                     let mut h = hub.history.lock().unwrap();
@@ -108,8 +115,6 @@ fn start_sampler(app: AppHandle, hub: Arc<Hub>, mut collector: Collector) {
                         h.pop_front();
                     }
                 }
-                // Only feed the page while it's on screen; history keeps filling regardless.
-                let visible = app.get_webview_window("main").is_some_and(|w| w.is_visible().unwrap_or(false));
                 if visible {
                     let _ = app.emit_to("main", "sample", &snap);
                 }
@@ -141,11 +146,18 @@ fn hello(app: AppHandle, hub: State<Arc<Hub>>, settings: State<SettingsState>) -
 }
 
 #[tauri::command]
-fn save_settings(app: AppHandle, hub: State<Arc<Hub>>, state: State<SettingsState>, settings: Settings) -> Result<Settings, String> {
+fn save_settings(
+    app: AppHandle,
+    hub: State<Arc<Hub>>,
+    media: State<MediaWatch>,
+    state: State<SettingsState>,
+    settings: Settings,
+) -> Result<Settings, String> {
     let settings = settings.clamp();
     let previous = std::mem::replace(&mut *state.0.lock().unwrap(), settings.clone());
     settings.save().map_err(|e| e.to_string())?;
     hub.interval_ms.store(settings.interval_ms, Ordering::Relaxed);
+    media.set_wanted(settings.shows("media"));
     if previous.theme != settings.theme {
         apply_theme(&app, &settings.theme);
     }
@@ -203,6 +215,25 @@ fn run_action(name: String) -> Result<(), String> {
 #[tauri::command]
 fn end_processes(pids: Vec<u32>, seen: f64) -> procs::Ended {
     procs::end(&pids, seen)
+}
+
+/// The Now playing buttons. They act on the player Windows' media controls show, like the media
+/// keys on a keyboard do.
+#[tauri::command]
+fn media_control(media: State<MediaWatch>, action: String) -> Result<(), String> {
+    media.control(match action.as_str() {
+        "toggle" => media::Action::Toggle,
+        "next" => media::Action::Next,
+        "previous" => media::Action::Previous,
+        _ => return Err(format!("unknown media action: {action}")),
+    });
+    Ok(())
+}
+
+/// The current track's cover as a data: URL, fetched when a sample's `media.art` changes.
+#[tauri::command]
+fn media_art(media: State<MediaWatch>) -> Option<String> {
+    media.art()
 }
 
 /// For settings that are only read at startup (sensor sources).

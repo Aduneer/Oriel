@@ -36,6 +36,33 @@ pub struct Settings {
 pub struct Page {
     pub name: String,
     pub layout: Vec<Vec<String>>,
+    /// Relative width of each widget, row by row, as set in the layout editor on the dashboard.
+    /// Empty (or not matching `layout`) means every widget's own default width.
+    pub cols: Vec<Vec<f64>>,
+    /// Relative height of each row. Empty (or not matching `layout`) means the widgets' defaults.
+    pub rows: Vec<f64>,
+}
+
+/// Relative sizes outside this range are not something the editor can make.
+pub const MIN_WEIGHT: f64 = 0.2;
+pub const MAX_WEIGHT: f64 = 8.0;
+
+impl Page {
+    /// Keep the sizes usable: in range, and one for each widget and row, or none at all.
+    fn clamp_sizes(&mut self) {
+        let fit = |w: &mut f64| *w = if w.is_finite() { w.clamp(MIN_WEIGHT, MAX_WEIGHT) } else { 1.0 };
+        let cols_match = self.cols.len() == self.layout.len() && self.cols.iter().zip(&self.layout).all(|(c, l)| c.len() == l.len());
+        if cols_match {
+            self.cols.iter_mut().flatten().for_each(fit);
+        } else {
+            self.cols.clear();
+        }
+        if self.rows.len() == self.layout.len() {
+            self.rows.iter_mut().for_each(fit);
+        } else {
+            self.rows.clear();
+        }
+    }
 }
 
 /// One per number key, 1 to 9.
@@ -72,6 +99,7 @@ impl Default for Settings {
             pages: vec![Page {
                 name: "Dashboard".into(),
                 layout: vec![row(&["cpu", "gpu", "memory"]), row(&["network", "disk", "processes"])],
+                ..Page::default()
             }],
             rotate_seconds: 0,
             limits: Limits::default(),
@@ -138,6 +166,7 @@ impl Settings {
                 "" => format!("Page {}", i + 1),
                 name => name.to_string(),
             };
+            page.clamp_sizes();
         }
         // It ends up in an HTML attribute, so keep it to a plain id.
         let id_ok = |s: &str| !s.is_empty() && s.len() <= 32 && s.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-');
@@ -194,7 +223,7 @@ mod tests {
     #[test]
     fn pages_are_clamped() {
         let mut s = Settings {
-            pages: (0..12).map(|i| Page { name: format!("P{i}"), layout: vec![] }).collect(),
+            pages: (0..12).map(|i| Page { name: format!("P{i}"), ..Page::default() }).collect(),
             ..Settings::default()
         };
         s.pages[1].name = "  \t ".into();
@@ -210,5 +239,37 @@ mod tests {
 
         let none = Settings { pages: vec![], ..Settings::default() }.clamp();
         assert!(none.pages == Settings::default().pages);
+    }
+
+    #[test]
+    fn a_page_from_before_sizes_has_none() {
+        // Written by the pages release: a page with no `cols` or `rows`.
+        let s = Settings::parse(r#"{"pages": [{"name": "Media", "layout": [["media", "volume"], ["cpu"]]}]}"#).unwrap().clamp();
+        assert!(s.pages[0].cols.is_empty() && s.pages[0].rows.is_empty());
+        assert_eq!(s.pages[0].layout.len(), 2);
+        // And a file from before pages still comes through both migrations.
+        let s = Settings::parse(r#"{"layout": [["cpu", "gpu"]]}"#).unwrap().clamp();
+        assert!(s.pages[0].cols.is_empty() && s.pages[0].rows.is_empty());
+    }
+
+    #[test]
+    fn sizes_are_kept_when_they_fit_and_clamped() {
+        let s = Settings::parse(r#"{"pages": [{"name": "A", "layout": [["cpu", "gpu"], ["processes"]], "cols": [[1.5, 0.5], [1.0]], "rows": [2.0, 100.0]}]}"#).unwrap().clamp();
+        assert_eq!(s.pages[0].cols, [vec![1.5, 0.5], vec![1.0]]);
+        assert_eq!(s.pages[0].rows, [2.0, MAX_WEIGHT]);
+        let s = Settings::parse(&serde_json::to_string(&s).unwrap()).unwrap();
+        assert_eq!(s.pages[0].rows, [2.0, MAX_WEIGHT]);
+
+        let tiny = Settings::parse(r#"{"pages": [{"name": "A", "layout": [["cpu"]], "cols": [[0.0]], "rows": [-3.0]}]}"#).unwrap().clamp();
+        assert_eq!(tiny.pages[0].cols, [vec![MIN_WEIGHT]]);
+        assert_eq!(tiny.pages[0].rows, [MIN_WEIGHT]);
+    }
+
+    #[test]
+    fn sizes_that_dont_match_the_layout_are_dropped() {
+        // A widget was added to a row by hand without a width for it, and a row has no height.
+        let s = Settings::parse(r#"{"pages": [{"name": "A", "layout": [["cpu", "gpu"], ["processes"]], "cols": [[1.0], [1.0]], "rows": [1.0]}]}"#).unwrap().clamp();
+        assert!(s.pages[0].cols.is_empty());
+        assert!(s.pages[0].rows.is_empty());
     }
 }

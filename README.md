@@ -37,13 +37,19 @@ needs your attention.
 - **Light.** About 140 MB of memory and 6% of one CPU core with the dashboard on screen.
   No admin rights, drivers or services.
 - **Private.** No account and no telemetry. Only the weather and calendar widgets go online, and
-  only once you add them; [what they send](#weather-and-calendar) is short and spelled out.
+  only once you give them a place or a calendar link; [what they send](#weather-and-calendar) is
+  short and spelled out.
 - **One click into Windows.** Each tile's ↗ button opens the matching part of Windows: Task
   Manager from the process list, Storage settings from the disk tile, and so on.
 - **Yours to change.** Drag tiles around and resize them, six themes in dark and light, and
   widgets in plain JavaScript if you want to write your own, even from a [plugin folder](#plugins).
 
 ## What's on it
+
+Oriel starts with two pages. Move, add or remove anything on them in Settings → Layout or with
+**Edit layout** (<kbd>E</kbd>), or add pages of your own.
+
+**Resources**
 
 - **CPU**: load (the same figure Task Manager shows), a bar per thread, effective clock,
   temperature, and with [LibreHardwareMonitor](#sensors) package power and fan speed
@@ -62,17 +68,16 @@ needs your attention.
   <img alt="The process list as a tree: explorer, then Windows Terminal, PowerShell, cargo and the rustc processes of a build, with the Code and Chrome branches folded away" src="docs/images/process-tree-dark.png">
 </picture>
 
-More widgets to add in Settings → Layout, or with **Edit layout** (<kbd>E</kbd>), on a page of
-their own if you like:
+**Desk**
 
-- **Now playing**: the track, artist and cover from Spotify, your browser or any app that shows
-  in Windows' media controls, with play/pause and skip
-- **Volume mixer**: your speakers' or headphones' volume and every app's, each with a mute
-  button, like Windows' own mixer
 - **Weather**: now, the next hours and the next days for a place you pick, from
   [Open-Meteo](https://open-meteo.com)
 - **Calendar**: the next 7 or 14 days from the calendar links (.ics) you paste in, from Google,
   Outlook, Apple or anything else that publishes one, recurring events and time zones included
+- **Now playing**: the track, artist and cover from Spotify, your browser or any app that shows
+  in Windows' media controls, with play/pause and skip
+- **Volume mixer**: your speakers' or headphones' volume and every app's, each with a mute
+  button, like Windows' own mixer
 - **Gauges**: dials for CPU and GPU load and temperature and for memory, with your warn and
   critical limits marked on them
 - **Open windows**: what the taskbar and Alt+Tab would list. Click one to bring it to the front,
@@ -80,7 +85,7 @@ their own if you like:
 
 <picture>
   <source media="(prefers-color-scheme: light)" srcset="docs/images/widgets-light.png">
-  <img alt="A second page of the dashboard: weather, calendar and now playing across the top; gauges, the volume mixer and open windows below" src="docs/images/widgets-dark.png">
+  <img alt="The Desk page: weather, calendar and now playing across the top; gauges, the volume mixer and open windows below" src="docs/images/widgets-dark.png">
 </picture>
 
 ## Themes
@@ -107,8 +112,10 @@ into a folder of its own (not straight into Downloads) and run `oriel.exe`.
 > Oriel isn't code-signed yet, so Windows doesn't know who made it:
 > - **SmartScreen** may say *Windows protected your PC*. Click **More info**, then **Run anyway**.
 > - **Smart App Control**, if it's on, may block Oriel: it only lets unsigned apps run when
->   Microsoft's cloud service judges them safe, and it has no "run anyway". If it blocks Oriel,
->   you can [build it yourself](CONTRIBUTING.md#building-from-source) until Oriel is signed.
+>   Microsoft's cloud service judges them safe, and it has no "run anyway". It judges each file
+>   on its own, so if it blocks the portable zip, try the installer, which has run where the
+>   zip was blocked. If it blocks that too, you can
+>   [build Oriel yourself](CONTRIBUTING.md#building-from-source) until it's signed.
 >   Please don't turn Smart App Control off for Oriel: on most versions of Windows it can only
 >   be turned back on by reinstalling Windows.
 >
@@ -133,9 +140,9 @@ To end something, right-click it and choose **End process** (or **End all** for 
 has your rights, not admin ones, so Windows won't let it end parts of Windows or apps running as
 administrator; the header says so when that happens.
 
-The dashboard can have several **pages**, each with its own widgets: say *Resources* for the
-graphs and *Media* for Now playing, which fits well on a page of its own. Add them in Settings →
-Layout. With two or more, tabs show in the header; click one, or press <kbd>1</kbd>–<kbd>9</kbd>
+The dashboard has **pages**, each with its own widgets: *Resources* and *Desk* to start with.
+Add, rename, reorder or delete them in Settings → Layout. With two or more, tabs show in the
+header; click one, or press <kbd>1</kbd>–<kbd>9</kbd>
 or <kbd>PgUp</kbd>/<kbd>PgDn</kbd>. Graphs keep their history on the pages you aren't looking at,
 which aren't drawn until you switch to them, and Oriel opens on the page you last picked. For a
 screen you don't touch, **Cycle pages** moves on to the next page every so often, and waits
@@ -217,8 +224,9 @@ and power while something is already using the GPU.
 
 ## Weather and calendar
 
-These two widgets are the only parts of Oriel that go online, and each only while it's on one of
-your pages. Each goes to one kind of place, and nothing else is sent:
+These two widgets are the only parts of Oriel that go online: each only once you've given it a
+place or a calendar link, and only while it's on one of your pages. Each goes to one kind of
+place, and nothing else is sent:
 
 - **Weather** asks [Open-Meteo](https://open-meteo.com) (free, no account) for the forecast about
   every 30 minutes, with the place's coordinates rounded to about a kilometre. Pick the place in
@@ -244,7 +252,7 @@ occurrences) work in any time zone Windows knows, and times show in your PC's ow
 ## FAQ
 
 **Does Oriel send my data anywhere?**
-Only if you add the weather or calendar widget, and then only what
+Only if you set up the weather or calendar widget, and then only what
 [Weather and calendar](#weather-and-calendar) lists. There's no account, telemetry or update
 check. The only other connection is to LibreHardwareMonitor's web server, at the address in
 Settings (your own PC by default), to read sensors.

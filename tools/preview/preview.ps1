@@ -98,11 +98,10 @@ foreach ($mode in "dark", "light") {
     Write-Host "Rendering process tree ($mode)"
     Shot "$(Url $page)?palette=oriel&theme=$mode&layout=processes&procs=tree&click=Code,chrome&$time" (Join-Path $raw "tree-$mode.png") $TW $TH 2
 }
-# A second page with the widgets you add yourself, so the header shows the page tabs too.
-$desk = "pages=Resources:cpu,gpu,memory|network,disk,processes;Desk:weather,calendar,media|gauges,volume,windows&page=2"
+# The default second page, Desk.
 foreach ($mode in "dark", "light") {
     Write-Host "Rendering widgets page ($mode)"
-    Shot "$(Url $page)?palette=oriel&theme=$mode&$desk&$time" (Join-Path $raw "widgets-$mode.png") $W $H
+    Shot "$(Url $page)?palette=oriel&theme=$mode&page=2&$time" (Join-Path $raw "widgets-$mode.png") $W $H
 }
 
 # Frame the shots: rounded corners on a transparent background, and a grid of the themes.

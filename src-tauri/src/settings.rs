@@ -136,11 +136,20 @@ impl Default for Settings {
             fullscreen: true,
             interval_ms: 1000,
             graph_seconds: 300,
-            pages: vec![Page {
-                name: "Dashboard".into(),
-                layout: vec![row(&["cpu", "gpu", "memory"]), row(&["network", "disk", "processes"])],
-                ..Page::default()
-            }],
+            // What's in the README's pictures. Desk's weather and calendar fetch nothing until
+            // someone picks a place or adds a link.
+            pages: vec![
+                Page {
+                    name: "Resources".into(),
+                    layout: vec![row(&["cpu", "gpu", "memory"]), row(&["network", "disk", "processes"])],
+                    ..Page::default()
+                },
+                Page {
+                    name: "Desk".into(),
+                    layout: vec![row(&["weather", "calendar", "media"]), row(&["gauges", "volume", "windows"])],
+                    ..Page::default()
+                },
+            ],
             rotate_seconds: 0,
             limits: Limits::default(),
             burn_in_shift: true,
@@ -290,6 +299,14 @@ mod tests {
         let s = Settings::parse(r#"{"pages": [{"name": "Resources", "layout": [["cpu"]]}, {"name": "Media", "layout": [["media"]]}]}"#).unwrap();
         assert!(s.shows("cpu") && s.shows("media"));
         assert!(!s.shows("processes"));
+    }
+
+    #[test]
+    fn the_default_pages_dont_go_online() {
+        let s = Settings::default().clamp();
+        assert_eq!(s.pages.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(), ["Resources", "Desk"]);
+        assert!(s.shows("weather") && s.shows("calendar"));
+        assert!(crate::weather::config(&s).is_none() && crate::calendar::config(&s).is_none());
     }
 
     #[test]

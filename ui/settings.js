@@ -5,7 +5,11 @@ const O = Oriel;
 const { $, el, esc } = O;
 const { invoke } = window.__TAURI__.core;
 
-const DEFAULT_LAYOUT = [["cpu", "gpu", "memory"], ["network", "disk", "processes"]];
+// As Settings::default in settings.rs.
+const DEFAULT_PAGES = [
+  { name: "Resources", layout: [["cpu", "gpu", "memory"], ["network", "disk", "processes"]] },
+  { name: "Desk", layout: [["weather", "calendar", "media"], ["gauges", "volume", "windows"]] },
+];
 const MAX_PAGES = 9, MAX_NAME = 32; // as in settings.rs
 const GRAPH = [[60, "1 minute"], [120, "2 minutes"], [300, "5 minutes"], [600, "10 minutes"]];
 const INTERVAL = [[500, "0.5 seconds"], [1000, "1 second"], [2000, "2 seconds"], [5000, "5 seconds"]];
@@ -372,8 +376,8 @@ function deletePage(i, btn) {
 }
 
 function resetLayout(btn) {
-  if (S().pages.length > 1 && !armed(btn)) return arm(btn, "Click again to replace every page with the default one");
-  setPages([{ name: "Dashboard", layout: DEFAULT_LAYOUT.map(r => [...r]) }], 0);
+  if (S().pages.length > 1 && !armed(btn)) return arm(btn, "Click again to replace every page with the default ones");
+  setPages(DEFAULT_PAGES.map(p => ({ name: p.name, layout: p.layout.map(r => [...r]) })), 0);
 }
 
 // Deleting a page with widgets, or resetting several pages, asks for a second click within a few seconds.

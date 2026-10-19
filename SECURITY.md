@@ -9,9 +9,10 @@ and Windows versions you tried.
 
 ## What Oriel does and doesn't do
 
-- It doesn't connect to the internet unless you add the weather or calendar widget to a page, and
-  then only while that widget is on a page and the dashboard is on screen (`src-tauri/src/net.rs`,
-  `feed.rs`). Weather asks Open-Meteo for a forecast, sending the chosen place's coordinates
+- It doesn't connect to the internet unless you pick a place for the weather widget or add a
+  calendar link, and then only while that widget is on a page and the dashboard is on screen
+  (`src-tauri/src/net.rs`, `feed.rs`). Both widgets are on the default Desk page, where they fetch
+  nothing until you do. Weather asks Open-Meteo for a forecast, sending the chosen place's coordinates
   rounded to two decimals, and, when you search for a place, the words you typed
   (`weather.rs`). Calendar fetches the https:// links you paste into Settings (`calendar.rs`).
   Nothing else is sent, apart from what any request carries: your IP address, and headers

@@ -9,6 +9,9 @@
 //   media=off (nothing playing)  audio=off (no output device)
 //   weather=none (no place chosen)  weather=error (can't load)  weather=stale (older data, last update failed)  units=f|c
 //   calendar=none (no links)  calendar=empty (no events)  calendar=error  calendar=stale (one calendar offline)  days=14
+//   plugins=on (load made-up plugin widgets: hello, broken-create, broken-update, and files that fail to load
+//     or clash with a built-in; add them with e.g. layout=cpu,hello,broken-create,broken-update)
+//   plugin=http://127.0.0.1:5300/world-clock.js (also load this script, and its .css if plugin_css=<url> is given)
 //   edit=1 (start in Edit layout)  widths=2,1|1,1,1 (relative tile widths per row)  heights=1,2 (relative row heights)
 //     widths and heights apply to the first page, like a settings file saved by the layout editor
 //   hot=1 (temperatures and memory past the warn and critical limits, to see the gauges' bands)
@@ -74,7 +77,41 @@
       { name: "Work", color: "s1", url: "https://calendar.example.test/private/4e5f6a7b/work.ics" },
     ],
     calendar_days: Number(q.get("days")) === 14 ? 14 : 7,
+    plugins: q.get("plugins") === "on" || !!q.get("plugin"),
   };
+
+  // Plugin files as list_plugins would return them (the real ones are served by the oriel-plugins
+  // scheme from %APPDATA%\Oriel\widgets). Blob URLs stand in for http://oriel-plugins.localhost/.
+  const blobURL = (text, type) => URL.createObjectURL(new Blob([text], { type }));
+  const FIXTURES = {
+    "broken-update.js": `Oriel.register("broken-update", { name: "Breaks on update", color: "gpu", create() {
+      const root = Oriel.el('<article class="tile"><header><h2>Breaks on update</h2></header><p class="label">Fine until the third sample</p></article>');
+      let n = 0;
+      return { root, update() { if (++n >= 3) throw new Error("sample.cpu.nope is undefined"); } };
+    } });`,
+    "clash.js": `Oriel.register("cpu", { name: "Not the real CPU", create: () => ({ root: document.createElement("div"), update() {} }) });`,
+    "hello.css": `.hello .big { color: var(--accent); }`,
+    "hello.js": `Oriel.register("hello", { name: "Hello", description: "Says hello and shows CPU load", color: "s2", create() {
+      const t = Oriel.refs(Oriel.el('<article class="tile hello" style="--hue:var(--s2)"><header><h2>Hello from a plugin</h2></header><div class="big" data-k="v">–</div><span class="label">CPU load</span></article>'));
+      return { root: t.root, update(s) { Oriel.setHTML(t.v, Oriel.fmt.pctHTML(s.cpu.total)); } };
+    } });`,
+    "broken-create.js": `Oriel.register("broken-create", { name: "Breaks on create", create() { return null.root; } });`,
+    "broken-load.js": `Oriel.register("never-registered", {}); throw new Error("this file has a bug on its first line");`,
+    "syntax.js": `Oriel.register("syntax", { name: "Typo", create() {`,
+  };
+  function pluginFiles() {
+    const out = [];
+    if (q.get("plugins") === "on") {
+      for (const file of Object.keys(FIXTURES).filter(f => f.endsWith(".js")).sort()) {
+        const css = file.replace(/\.js$/, ".css");
+        out.push({ file, url: blobURL(FIXTURES[file], "text/javascript"), css: FIXTURES[css] ? blobURL(FIXTURES[css], "text/css") : null });
+      }
+    }
+    if (q.get("plugin")) {
+      out.push({ file: q.get("plugin").split("/").pop(), url: q.get("plugin"), css: q.get("plugin_css") || null });
+    }
+    return out;
+  }
   if (widths.length) settings.pages[0].cols = widths;
   if (heights.length) settings.pages[0].rows = heights;
   const GPU_ID = "0x00000000_0x0000e1c7";
@@ -466,7 +503,7 @@
                 const rows = [...document.querySelectorAll(".procs .r.x")];
                 rows.find(r => r.title.split(" · ")[0] === name)?.click();
               }
-              if (q.get("settings") === "1") Oriel.settingsPanel.open();
+              if (q.get("settings") === "1") Oriel.plugins.load().then(() => Oriel.settingsPanel.open()); // after the plugins, as it is for a person
               if (q.get("edit") === "1") Oriel.editor.start();
             }, 0);
             return {
@@ -507,6 +544,7 @@
             return w.length < 2 ? [] : PLACES.filter(p => p.name.toLowerCase().includes(w));
           }
           case "set_autostart": return args.enabled;
+          case "list_plugins": return settings.plugins ? pluginFiles() : [];
           case "media_art": return cover(TRACKS[player.track].hue);
           case "media_control": control(args.action); setTimeout(emit, 150); return null;
           case "set_volume": {

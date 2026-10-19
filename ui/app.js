@@ -30,6 +30,7 @@ async function boot() {
     autostart: hello.autostart,
     settingsPath: hello.settings_path,
   });
+  await O.plugins.load(); // once; a no-op when the setting is off
   O.applySettings();
   build(hello.history);
 }

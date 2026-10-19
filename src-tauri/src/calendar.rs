@@ -1,9 +1,10 @@
 //! The calendar widget: fetches the .ics links in Settings and works out what's coming up.
 //!
 //! The links are secrets (many calendars' "secret address" is the only thing protecting them),
-//! so they live only in the settings file and in this module's requests: they're never logged,
-//! never sent to the page, and never put in an error message. The page only gets the events,
-//! and whether each calendar could be fetched.
+//! so they live only in the settings file and in this module's requests: they're never logged and
+//! never put in an error message. (The page has them too, as part of the settings it shows in the
+//! settings panel.) What the calendar tile is sent is only the events and whether each calendar
+//! could be fetched.
 
 use crate::feed::{now, Watch};
 use crate::ics::{self, Event};

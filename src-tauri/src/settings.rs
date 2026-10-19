@@ -34,10 +34,13 @@ pub struct Settings {
     /// "auto" (°F in the United States and a few other countries, °C elsewhere), "c" or "f"
     pub weather_units: String,
     /// The calendar widget's .ics links. Secrets, in the sense that anyone who has one can read the
-    /// calendar: they're only used for fetching, and never shown anywhere but in Settings.
+    /// calendar: they're only used for fetching, and never shown anywhere but in the settings panel.
     pub calendars: Vec<CalendarFeed>,
     /// How many days ahead the calendar widget looks
     pub calendar_days: u32,
+    /// Load widgets from %APPDATA%\Oriel\widgets (see plugins.rs). Off by default: they're code
+    /// that runs in the dashboard with its rights.
+    pub plugins: bool,
 }
 
 /// A place, for the weather.
@@ -148,6 +151,7 @@ impl Default for Settings {
             weather_units: "auto".into(),
             calendars: vec![],
             calendar_days: 7,
+            plugins: false,
         }
     }
 }
@@ -342,6 +346,13 @@ mod tests {
         // Saved and read back, they're the same (the link included, for the settings panel).
         let again = Settings::parse(&serde_json::to_string(&s).unwrap()).unwrap().clamp();
         assert!(again == s);
+    }
+
+    #[test]
+    fn plugins_are_off_unless_asked_for() {
+        assert!(!Settings::default().plugins);
+        assert!(!Settings::parse(r#"{"theme": "dark"}"#).unwrap().plugins);
+        assert!(Settings::parse(r#"{"plugins": true}"#).unwrap().plugins);
     }
 
     #[test]

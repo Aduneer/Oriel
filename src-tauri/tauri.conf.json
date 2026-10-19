@@ -9,7 +9,7 @@
     "withGlobalTauri": true,
     "windows": [],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'",
+      "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' http://oriel-plugins.localhost; script-src 'self' http://oriel-plugins.localhost",
       "dangerousDisableAssetCspModification": ["style-src"]
     }
   },
